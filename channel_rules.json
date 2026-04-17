@@ -1,0 +1,386 @@
+{
+  "A HABER": {
+    "hidden_exact_titles": [
+      "BARCO",
+      "KAPAK",
+      "GA",
+      "LİNE",
+      "LINE",
+      "SEPERATOR"
+    ],
+    "hidden_title_contains_whole_words": [
+      "DSF"
+    ],
+    "hidden_title_startswith_symbols_or_digits": true,
+    "codes": {
+      "A": {
+        "label": "ANKARA HABER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "AZ": {
+        "label": "ANALİZ",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "ANALİZ",
+          "ANALIZ"
+        ]
+      },
+      "C": {
+        "label": "CANLI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "D": {
+        "label": "DIŞ HABER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "DA": {
+        "label": "DIŞ HABER AKŞAM",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "DG": {
+        "label": "DIŞ HABER GECE",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "DS": {
+        "label": "DIŞ HABER SABAH",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "ED": {
+        "label": "EDİTÖR SES",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "I": {
+        "label": "İSTANBUL HABER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "IA": {
+        "label": "İSTANBUL HABER AKŞAM",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "IG": {
+        "label": "İSTANBUL HABER GECE",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "IS": {
+        "label": "İSTANBUL HABER SABAH",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "MM": {
+        "label": "MEMLEKET MESELESİ",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "MEMLEKET MESELESİ",
+          "MEMLEKET MESELESI"
+        ]
+      },
+      "P": {
+        "label": "PORTRE",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "PORTRE",
+          "PERSPEKTİF",
+          "PERSPEKTIF"
+        ],
+        "dynamic_title_rules": [
+          {
+            "if_title_contains_any": [
+              "PERSPEKTİF",
+              "PERSPEKTIF"
+            ],
+            "override_label": "PERSPEKTİF",
+            "override_dedupe_prefix_words": [
+              "PERSPEKTİF",
+              "PERSPEKTIF"
+            ]
+          }
+        ]
+      },
+      "S": {
+        "label": "SPOR",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "YA": {
+        "label": "YURT HABER AKŞAM",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "YG": {
+        "label": "YURT HABER GECE",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "YS": {
+        "label": "YURT HABER SABAH",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "BTH": {
+        "label": "BİR TÜRKÜNÜN HİKAYESİ",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "BİR TÜRKÜNÜN HİKAYESİ",
+          "BIR TURKUNUN HIKAYESI"
+        ]
+      },
+      "E": {
+        "label": "EKONOMİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "PA": {
+        "label": "PERDE ARKASI",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "PERDE ARKASI"
+        ]
+      },
+      "YY": {
+        "label": "ÖZEL DOSYA",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "ÖZEL DOSYA",
+          "OZEL DOSYA"
+        ]
+      },
+      "YY-(OD)": {
+        "label": "ÖZEL DOSYA",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "ÖZEL DOSYA",
+          "OZEL DOSYA"
+        ]
+      },
+      "YS-(OD)": {
+        "label": "ÖZEL DOSYA",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "ÖZEL DOSYA",
+          "OZEL DOSYA"
+        ]
+      }
+    }
+  },
+  "A NEWS": {
+    "hidden_exact_titles": [],
+    "hidden_title_contains_whole_words": [],
+    "hidden_title_startswith_symbols_or_digits": false,
+    "codes": {
+      "E": {
+        "label": "EKONOMİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "S": {
+        "label": "SPOR",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "T": {
+        "label": "TÜRKİYE",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "VO": {
+        "label": "SES",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WAF": {
+        "label": "AFRİKA KITASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WAM": {
+        "label": "AMERİKA KITASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WAS": {
+        "label": "ASYA KITASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WAU": {
+        "label": "AVUSTRALYA KITASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WEU": {
+        "label": "AVRUPA KITASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WME": {
+        "label": "ORTA DOĞU",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WRU": {
+        "label": "DOĞU AVRUPA",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WUK": {
+        "label": "BRİTANYA ADASI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "WHZ": {
+        "label": "SOFT HABERLER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "LIVE": {
+        "label": "CANLI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      }
+    }
+  },
+  "ATV": {
+    "hidden_exact_titles": [],
+    "hidden_title_contains_whole_words": [],
+    "hidden_title_startswith_symbols_or_digits": false,
+    "codes": {}
+  },
+  "A SPOR": {
+    "hidden_exact_titles": [
+      "BARKO"
+    ],
+    "hidden_title_contains_whole_words": [],
+    "hidden_title_startswith_symbols_or_digits": true,
+    "codes": {
+      "B": {
+        "label": "BARKO",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "C": {
+        "label": "CANLI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "Z": {
+        "label": "BÜLTEN",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "S": {
+        "label": "SPOR",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "KJ": {
+        "label": "KJ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "G": {
+        "label": "GRAFİK",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "SA": {
+        "label": "SPOR AJANSI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "SG": {
+        "label": "SPOR GÜNDEMİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "YHS": {
+        "label": "YAŞASIN HAFTA SONU",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "90+1": {
+        "label": "90+1",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "AH": {
+        "label": "ANA HABER BÜLTENİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "SS": {
+        "label": "SON SAYFA",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "TO": {
+        "label": "TAKIM OYUNU",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      }
+    }
+  },
+  "A PARA": {
+    "hidden_exact_titles": [
+      "BARKO"
+    ],
+    "hidden_title_contains_whole_words": [],
+    "hidden_title_startswith_symbols_or_digits": true,
+    "codes": {
+      "AP": {
+        "label": "HABER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "B": {
+        "label": "BARKO",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "C": {
+        "label": "CANLI",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "DS": {
+        "label": "DIŞ HABER",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "G": {
+        "label": "GRAFİK",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "K": {
+        "label": "KONUK",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "S": {
+        "label": "SES",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "E": {
+        "label": "EKONOMİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "K-STD": {
+        "label": "KONUK STÜDYO",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      }
+    }
+  }
+}

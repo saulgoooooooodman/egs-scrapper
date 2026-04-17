@@ -1,0 +1,251 @@
+EGS Scrapper Dosya Envanteri 
+Tarih: 16/04/2026 20:57:05,44
+Klasor: C:\Users\ismet.uluer\Desktop\EGS Scrapper
+
+=========================================
+KOK KLASOR DOSYALARI
+=========================================
+app.py
+backup_project.bat
+branding.py
+build_exe.bat
+changelog.py
+channel_rules.json
+clean_build.bat
+dosya_envanteri.txt
+dosya_envanteri_al.bat
+EGS_Scrapper.spec
+error_reporter.py
+health_check.py
+health_check_report.txt
+help_content.md
+help_dialog.py
+install_update.bat
+liste.txt
+logo.ico
+logo.png
+logo.svg
+main_window.py
+prepare_release.bat
+projeyi_klasorlere_ayir.bat
+requirements.txt
+saglik_kontrolu.bat
+settings.json
+version_info.py
+
+=========================================
+KLASOR YAPISI
+=========================================
+Folder PATH listing
+Volume serial number is 78D5-B4AF
+C:.
+|   app.py
+|   backup_project.bat
+|   branding.py
+|   build_exe.bat
+|   changelog.py
+|   channel_rules.json
+|   clean_build.bat
+|   dosya_envanteri.txt
+|   dosya_envanteri_al.bat
+|   EGS_Scrapper.spec
+|   error_reporter.py
+|   health_check.py
+|   health_check_report.txt
+|   help_content.md
+|   help_dialog.py
+|   install_update.bat
+|   liste.txt
+|   logo.ico
+|   logo.png
+|   logo.svg
+|   main_window.py
+|   prepare_release.bat
+|   projeyi_klasorlere_ayir.bat
+|   requirements.txt
+|   saglik_kontrolu.bat
+|   settings.json
+|   version_info.py
+|   
++---actions
+|   |   main_window_actions.py
+|   |   main_window_data_actions.py
+|   |   main_window_edit_actions.py
+|   |   main_window_state_hooks.py
+|   |   main_window_view_actions.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---core
+|   |   app_paths.py
+|   |   logger_setup.py
+|   |   rules_store.py
+|   |   settings_manager.py
+|   |   text_utils.py
+|   |   window_state_manager.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---data
+|   |   cache_manager.py
+|   |   database.py
+|   |   database_core.py
+|   |   database_merge.py
+|   |   database_search.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---databases
+|       a_haber_2000_01.db
+|       a_haber_2026_04.db
+|       a_news_2000_01.db
+|       a_news_2026_04.db
+|       
++---dialogs
+|   |   archive_search_dialog.py
+|   |   code_filter_wizard.py
+|   |   db_merge_dialog.py
+|   |   dictionary_bundle_dialog.py
+|   |   external_db_manager.py
+|   |   find_replace_dialog.py
+|   |   help_dialog.py
+|   |   info_dialog.py
+|   |   log_viewer_dialog.py
+|   |   rules_manager_dialog.py
+|   |   startup_dialog.py
+|   |   title_dictionary_manager.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---dictionaries
+|   |   dictionary_store.py
+|   |   spell_backend.py
+|   |   title_spellcheck.py
+|   |   title_transform.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---error_reports
++---logs
+|       egs_scrapper_20260414.log
+|       
++---models
+|   |   news_list_model.py
+|   |   news_table_model.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---parsing
+|   |   news_worker.py
+|   |   parser.py
+|   |   scanner.py
+|   |   worker_manager.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
++---tools
+|       fix_imports.py
+|       import_duzelt.bat
+|       make_logo_ico.py
+|       
++---ui
+|   |   main_window_context_menus.py
+|   |   main_window_filters.py
+|   |   main_window_menu_builder.py
+|   |   main_window_preview.py
+|   |   main_window_topbar.py
+|   |   main_window_ui.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+\---watchers
+    |   live_reload.py
+    |   __init__.py
+    |   
+    \---__pycache__
+
+=========================================
+SADECE PY DOSYALARI (TAM YOL)
+=========================================
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\app.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\branding.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\changelog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\error_reporter.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\health_check.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\help_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\main_window.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\version_info.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\main_window_actions.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\main_window_data_actions.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\main_window_edit_actions.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\main_window_state_hooks.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\main_window_view_actions.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\actions\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\app_paths.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\logger_setup.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\rules_store.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\settings_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\text_utils.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\window_state_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\core\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\cache_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\database.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\database_core.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\database_merge.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\database_search.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\data\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\archive_search_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\code_filter_wizard.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\db_merge_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\dictionary_bundle_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\external_db_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\find_replace_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\help_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\info_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\log_viewer_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\rules_manager_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\startup_dialog.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\title_dictionary_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dialogs\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dictionaries\dictionary_store.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dictionaries\spell_backend.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dictionaries\title_spellcheck.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dictionaries\title_transform.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\dictionaries\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\models\news_list_model.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\models\news_table_model.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\models\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\parsing\news_worker.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\parsing\parser.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\parsing\scanner.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\parsing\worker_manager.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\parsing\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\tools\fix_imports.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\tools\make_logo_ico.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_context_menus.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_filters.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_menu_builder.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_preview.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_topbar.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\main_window_ui.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\ui\__init__.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\watchers\live_reload.py
+C:\Users\ismet.uluer\Desktop\EGS Scrapper\watchers\__init__.py
+
+=========================================
+KOKTE OLUP ALT KLASORLERDE DE AYNI ISIMLE BULUNAN DOSYALAR
+=========================================
+help_dialog.py
+
+=========================================
+KOK KLASORDEKI MUHTEMEL ARTIK DOSYALAR (PY / BAK / PYC)
+=========================================
+app.py
+branding.py
+changelog.py
+error_reporter.py
+health_check.py
+help_dialog.py
+main_window.py
+version_info.py
+
