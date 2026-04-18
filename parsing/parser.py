@@ -132,19 +132,31 @@ def _strip_story_day_suffix(title: str) -> str:
     return title.strip()
 
 
+def _get_valid_news_codes(channel_name: str) -> list[str]:
+    rules = get_channel_rules(channel_name)
+    codes = rules.get("news_codes", {})
+    if not isinstance(codes, dict):
+        return []
+
+    valid_codes = [str(code).strip() for code in codes.keys() if str(code).strip()]
+    valid_codes.sort(key=len, reverse=True)
+    return valid_codes
+
+
 def _extract_news_code_and_title(name: str, channel_name: str) -> tuple[str, str]:
     base = _strip_file_suffix(name).strip()
+    code = ""
+    title = base
 
-    match = re.match(r"^([A-Z0-9+\-]+)\s*-\s*(.+)$", base)
-    if match:
-        code = match.group(1).strip()
-        title = match.group(2).strip()
-    else:
-        parts = base.split(maxsplit=1)
-        if len(parts) == 2 and len(parts[0]) <= 8:
-            code, title = parts[0].strip(), parts[1].strip()
-        else:
-            code, title = "", base
+    for valid_code in _get_valid_news_codes(channel_name):
+        pattern = rf"^(?P<code>{re.escape(valid_code)})(?:(?:\s*-\s*|\s+)(?P<title>.+)|$)"
+        match = re.match(pattern, base, flags=re.IGNORECASE)
+        if not match:
+            continue
+
+        code = valid_code
+        title = (match.group("title") or "").strip()
+        break
 
     has_od = (
         "(OD)" in title.upper()

@@ -21,6 +21,7 @@ REQUIRED_FILES = [
     "core/__init__.py",
     "core/app_paths.py",
     "core/settings_manager.py",
+    "core/settings_sync.py",
     "core/logger_setup.py",
     "core/rules_store.py",
     "core/text_utils.py",
@@ -31,6 +32,7 @@ REQUIRED_FILES = [
     "data/cache_manager.py",
     "data/database_search.py",
     "data/database_merge.py",
+    "data/news_repository.py",
 
     "dictionaries/__init__.py",
     "dictionaries/dictionary_store.py",
@@ -39,6 +41,8 @@ REQUIRED_FILES = [
     "dictionaries/title_spellcheck.py",
 
     "models/__init__.py",
+    "models/archive_search_result.py",
+    "models/news_item.py",
     "models/news_table_model.py",
     "models/news_list_model.py",
 
@@ -48,6 +52,7 @@ REQUIRED_FILES = [
     "parsing/__init__.py",
     "parsing/scanner.py",
     "parsing/parser.py",
+    "parsing/news_service.py",
     "parsing/news_worker.py",
     "parsing/worker_manager.py",
 
@@ -86,8 +91,9 @@ MODULE_SYMBOLS = {
     "smoke_test": ["run_smoke_test"],
     "version_info": ["APP_NAME", "APP_VERSION", "APP_RELEASE_DATE"],
 
-    "core.app_paths": ["BASE_DIR", "DATA_DIR", "DATABASES_DIR", "LOG_DIR", "RULES_FILE", "HELP_FILE"],
+    "core.app_paths": ["BASE_DIR", "APP_DATA_DIR", "DATA_DIR", "DATABASES_DIR", "LOG_DIR", "RULES_FILE", "HELP_FILE"],
     "core.settings_manager": ["load_settings", "save_settings"],
+    "core.settings_sync": ["SettingsSync"],
     "core.logger_setup": ["setup_logging", "install_exception_hook"],
     "core.rules_store": ["get_all_rules", "save_all_rules", "get_channel_rules"],
     "core.text_utils": ["normalize_search_text", "upper_tr"],
@@ -96,6 +102,10 @@ MODULE_SYMBOLS = {
     "data.database": [
         "init_db",
         "upsert_news",
+        "delete_news_for_paths",
+        "check_database_integrity",
+        "vacuum_databases",
+        "analyze_databases",
         "get_news_count_for_month",
         "get_all_codes_from_db",
         "search_archive",
@@ -104,6 +114,7 @@ MODULE_SYMBOLS = {
     "data.cache_manager": ["ensure_cache_table", "is_cached", "update_cache", "clear_cache"],
     "data.database_search": ["search_archive"],
     "data.database_merge": ["merge_external_database_into_channel"],
+    "data.news_repository": ["NewsRepository"],
 
     "dictionaries.dictionary_store": [
         "load_common_dictionary",
@@ -134,6 +145,8 @@ MODULE_SYMBOLS = {
         "apply_title_spellcheck",
     ],
 
+    "models.archive_search_result": ["ArchiveSearchResult"],
+    "models.news_item": ["NewsItem"],
     "models.news_table_model": ["NewsTableModel"],
     "models.news_list_model": ["NewsListModel"],
 
@@ -141,6 +154,7 @@ MODULE_SYMBOLS = {
 
     "parsing.scanner": ["build_date_path", "scan_news_files"],
     "parsing.parser": ["ParsedNews", "parse_egs_file"],
+    "parsing.news_service": ["NewsIngestService"],
     "parsing.news_worker": ["NewsLoadWorker"],
     "parsing.worker_manager": ["WorkerManager"],
 

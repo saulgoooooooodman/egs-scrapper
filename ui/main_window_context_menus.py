@@ -4,7 +4,7 @@ import os
 
 from PySide6.QtWidgets import QMenu, QMessageBox, QTextEdit
 from PySide6.QtGui import QAction
-from core.text_utils import lower_tr, title_tr, upper_tr
+from core.text_utils import transform_case_for_channel
 
 
 def show_header_context_menu(self, pos):
@@ -119,15 +119,15 @@ def _show_text_context_menu(self, text_edit: QTextEdit, global_pos, include_save
         case_menu = menu.addMenu("Harfleri Çevir")
 
         upper_action = QAction("TÜMÜNÜ BÜYÜK", self)
-        upper_action.triggered.connect(lambda: _transform_text(text_edit, "upper"))
+        upper_action.triggered.connect(lambda: _transform_text(self, text_edit, "upper"))
         case_menu.addAction(upper_action)
 
         lower_action = QAction("tümünü küçük", self)
-        lower_action.triggered.connect(lambda: _transform_text(text_edit, "lower"))
+        lower_action.triggered.connect(lambda: _transform_text(self, text_edit, "lower"))
         case_menu.addAction(lower_action)
 
         title_action = QAction("İlk Harfler Büyük", self)
-        title_action.triggered.connect(lambda: _transform_text(text_edit, "title"))
+        title_action.triggered.connect(lambda: _transform_text(self, text_edit, "title"))
         case_menu.addAction(title_action)
 
     if include_save and hasattr(self, "save_edited_text"):
@@ -159,16 +159,11 @@ def _copy_text(text_edit: QTextEdit):
         text_edit.setTextCursor(cursor)
 
 
-def _transform_text(text_edit: QTextEdit, mode: str):
+def _transform_text(owner, text_edit: QTextEdit, mode: str):
     cursor = text_edit.textCursor()
     text = cursor.selectedText() if cursor.hasSelection() else text_edit.toPlainText()
-
-    if mode == "upper":
-        transformed = upper_tr(text)
-    elif mode == "lower":
-        transformed = lower_tr(text)
-    else:
-        transformed = title_tr(text)
+    channel_name = getattr(owner, "channel_name", "")
+    transformed = transform_case_for_channel(text, mode, channel_name)
 
     if cursor.hasSelection():
         cursor.insertText(transformed)

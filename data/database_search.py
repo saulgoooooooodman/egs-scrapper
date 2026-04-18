@@ -1,9 +1,15 @@
+import logging
 import os
+import re
 import sqlite3
 from pathlib import Path
 
 from core.settings_manager import load_settings
 from data.database import get_legacy_db_path, iter_internal_db_paths
+from models.archive_search_result import ArchiveSearchResult
+
+
+logger = logging.getLogger("EGS.ArchiveSearch")
 
 
 def _normalize_db_file(path) -> str:
@@ -17,6 +23,14 @@ def _normalize_code(code) -> str:
     return str(code or "").strip().upper()
 
 
+def _normalize_editor_tokens(value) -> list[str]:
+    text = str(value or "").strip()
+    if not text:
+        return []
+    parts = re.split(r"[\n,;]+", text)
+    return [part.strip().casefold() for part in parts if part.strip()]
+
+
 def _row_haystack(row, scope: str) -> str:
     if scope == "title":
         return row[2] or ""
@@ -25,6 +39,19 @@ def _row_haystack(row, scope: str) -> str:
     if scope == "code":
         return row[1] or ""
     return f"{row[2] or ''}\n{row[3] or ''}"
+
+
+def _row_matches_editor_filters(row, editor_filters) -> bool:
+    filters = [_token for _token in (_normalize_editor_tokens(item) for item in (editor_filters or [])) if _token]
+    filter_tokens = [token for group in filters for token in group]
+    if not filter_tokens:
+        return True
+
+    row_editors = set(_normalize_editor_tokens(row[5] if len(row) > 5 else ""))
+    if not row_editors:
+        return False
+
+    return any(token in row_editors for token in filter_tokens)
 
 
 def _text_matches_query(haystack: str, query: str, use_regex: bool, exact_match: bool) -> bool:
@@ -148,7 +175,12 @@ def _fetch_from_database(
     scope="all",
     exact_match=False,
     query_clauses=None,
+    editor_filters=None,
+    should_cancel=None,
 ):
+    if callable(should_cancel) and should_cancel():
+        return []
+
     conn = sqlite3.connect(db_path)
     try:
         if not _has_news_table(conn):
@@ -156,7 +188,7 @@ def _fetch_from_database(
 
         cur = conn.cursor()
         sql = """
-            SELECT path, news_code, title, final_text, iso_date
+            SELECT path, news_code, title, final_text, iso_date, editors
             FROM news
             WHERE 1=1
         """
@@ -219,17 +251,28 @@ def _fetch_from_database(
         cur.execute(sql, params)
         rows = cur.fetchall()
         if clauses:
-            return [
-                row for row in rows
-                if _row_matches_query_clauses(row, clauses, use_regex, exact_match)
-            ]
+            matched_rows = []
+            for row in rows:
+                if callable(should_cancel) and should_cancel():
+                    return matched_rows
+                if (
+                    _row_matches_query_clauses(row, clauses, use_regex, exact_match)
+                    and _row_matches_editor_filters(row, editor_filters)
+                ):
+                    matched_rows.append(row)
+            return matched_rows
 
         if not use_regex:
-            return rows
+            return [row for row in rows if _row_matches_editor_filters(row, editor_filters)]
         matched = []
         for row in rows:
+            if callable(should_cancel) and should_cancel():
+                return matched
             haystack = _row_haystack(row, scope)
-            if _text_matches_query(haystack, query, use_regex, exact_match):
+            if (
+                _text_matches_query(haystack, query, use_regex, exact_match)
+                and _row_matches_editor_filters(row, editor_filters)
+            ):
                 matched.append(row)
         return matched
     finally:
@@ -247,11 +290,16 @@ def search_archive(
     scope="all",
     exact_match=False,
     query_clauses=None,
+    editor_filters=None,
+    should_cancel=None,
+    error_sink=None,
 ):
-    results = []
+    results: list[ArchiveSearchResult] = []
     seen = set()
 
     for source_name, db_path in _iter_search_databases(channel_name, start_iso_date, end_iso_date):
+        if callable(should_cancel) and should_cancel():
+            break
         try:
             rows = _fetch_from_database(
                 db_path,
@@ -264,11 +312,38 @@ def search_archive(
                 scope,
                 exact_match,
                 query_clauses,
+                editor_filters,
+                should_cancel,
             )
-        except Exception:
+        except Exception as exc:
+            error_info = {
+                "channel_name": channel_name,
+                "source_name": source_name,
+                "db_path": db_path,
+                "start_iso_date": start_iso_date or "",
+                "end_iso_date": end_iso_date or "",
+                "message": str(exc),
+            }
+            logger.exception(
+                "Arşiv arama veritabanında hata | kanal=%s | kaynak=%s | db=%s | baslangic=%s | bitis=%s",
+                channel_name,
+                source_name,
+                db_path,
+                start_iso_date or "",
+                end_iso_date or "",
+            )
+            if isinstance(error_sink, list):
+                error_sink.append(error_info)
+            elif callable(error_sink):
+                try:
+                    error_sink(error_info)
+                except Exception:
+                    logger.exception("Arşiv arama hata toplayıcısı başarısız | kanal=%s", channel_name)
             continue
 
-        for raw_path, news_code, title, final_text, iso_date in rows:
+        for raw_path, news_code, title, final_text, iso_date, editors in rows:
+            if callable(should_cancel) and should_cancel():
+                break
             normalized_path = _normalize_db_file(raw_path)
             dedupe_key = (
                 normalized_path.casefold() if normalized_path else "",
@@ -281,33 +356,27 @@ def search_archive(
                 continue
             seen.add(dedupe_key)
 
-            results.append({
-                "news_code": news_code or "",
-                "title": title or "",
-                "final_text": final_text or "",
-                "iso_date": iso_date or "",
-                "source_name": source_name,
-                "source_path": db_path,
-                "path": normalized_path,
-            })
+            results.append(ArchiveSearchResult(
+                news_code=news_code or "",
+                title=title or "",
+                final_text=final_text or "",
+                iso_date=iso_date or "",
+                source_name=source_name,
+                source_path=db_path,
+                path=normalized_path,
+                editors=editors or "",
+            ))
+
+        if callable(should_cancel) and should_cancel():
+            break
 
     results.sort(
         key=lambda item: (
-            item.get("iso_date", ""),
-            item.get("news_code", "").lower(),
-            item.get("title", "").lower(),
+            item.iso_date,
+            item.news_code.lower(),
+            item.title.lower(),
         ),
         reverse=True,
     )
 
-    trimmed = results[:200]
-    return [
-        (
-            item.get("news_code", ""),
-            item.get("title", ""),
-            item.get("final_text", ""),
-            item.get("iso_date", ""),
-            item.get("source_name", ""),
-        )
-        for item in trimmed
-    ]
+    return results[:200]

@@ -342,6 +342,46 @@ def upsert_news(channel_name: str, item: dict, conn: sqlite3.Connection | None =
         conn.close()
 
 
+def delete_news_for_paths(
+    channel_name: str,
+    paths: list[str],
+    iso_date: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    own_connection = conn is None
+    if own_connection:
+        conn = connect_db(channel_name, iso_date)
+
+    normalized_paths = []
+    for raw_path in paths:
+        normalized = normalize_db_path(raw_path)
+        if normalized:
+            normalized_paths.append(normalized)
+
+    if not normalized_paths:
+        if own_connection:
+            conn.close()
+        return 0
+
+    cur = conn.cursor()
+    placeholders = ",".join("?" for _ in normalized_paths)
+    params = list(normalized_paths)
+    sql = f"DELETE FROM news WHERE path COLLATE NOCASE IN ({placeholders})"
+
+    if iso_date:
+        sql += " AND iso_date = ?"
+        params.append(iso_date)
+
+    cur.execute(sql, params)
+    deleted = max(cur.rowcount, 0)
+
+    if own_connection:
+        conn.commit()
+        conn.close()
+
+    return deleted
+
+
 def _text_to_lines(value) -> list[str]:
     if not value:
         return []
@@ -512,6 +552,98 @@ def clear_cache_for_channel(channel_name: str):
             conn.close()
 
 
+def check_database_integrity(
+    channel_name: str,
+    start_iso_date: str | None = None,
+    end_iso_date: str | None = None,
+) -> list[dict]:
+    results: list[dict] = []
+
+    for db_path in iter_internal_db_paths(
+        channel_name,
+        start_iso_date,
+        end_iso_date,
+        include_legacy=True,
+        existing_only=True,
+    ):
+        conn = sqlite3.connect(db_path, timeout=30)
+        try:
+            cur = conn.cursor()
+            cur.execute("PRAGMA integrity_check")
+            rows = [str(row[0] or "").strip() for row in cur.fetchall()]
+            messages = [row for row in rows if row]
+            ok = len(messages) == 1 and messages[0].lower() == "ok"
+            results.append({
+                "path": str(db_path),
+                "ok": ok,
+                "messages": messages or ["ok"],
+            })
+        finally:
+            conn.close()
+
+    return results
+
+
+def vacuum_databases(
+    channel_name: str,
+    start_iso_date: str | None = None,
+    end_iso_date: str | None = None,
+) -> list[dict]:
+    results: list[dict] = []
+
+    for db_path in iter_internal_db_paths(
+        channel_name,
+        start_iso_date,
+        end_iso_date,
+        include_legacy=True,
+        existing_only=True,
+    ):
+        before_size = db_path.stat().st_size if db_path.exists() else 0
+        conn = sqlite3.connect(db_path, timeout=30)
+        try:
+            conn.execute("VACUUM")
+        finally:
+            conn.close()
+
+        after_size = db_path.stat().st_size if db_path.exists() else 0
+        results.append({
+            "path": str(db_path),
+            "before_size": before_size,
+            "after_size": after_size,
+            "reclaimed_bytes": max(before_size - after_size, 0),
+        })
+
+    return results
+
+
+def analyze_databases(
+    channel_name: str,
+    start_iso_date: str | None = None,
+    end_iso_date: str | None = None,
+) -> list[dict]:
+    results: list[dict] = []
+
+    for db_path in iter_internal_db_paths(
+        channel_name,
+        start_iso_date,
+        end_iso_date,
+        include_legacy=True,
+        existing_only=True,
+    ):
+        conn = sqlite3.connect(db_path, timeout=30)
+        try:
+            conn.execute("ANALYZE")
+            conn.commit()
+        finally:
+            conn.close()
+
+        results.append({
+            "path": str(db_path),
+        })
+
+    return results
+
+
 def search_archive(
     channel_name: str,
     query: str,
@@ -522,20 +654,26 @@ def search_archive(
     use_regex: bool = False,
     scope: str = "all",
     exact_match: bool = False,
+    editor_filters: list[str] | None = None,
     query_clauses: list[dict] | None = None,
+    should_cancel=None,
+    error_sink=None,
 ):
     from data.database_search import search_archive as _search_archive
     return _search_archive(
-        channel_name,
-        query,
-        start_iso_date,
-        end_iso_date,
-        selected_codes,
-        hide_mode,
-        use_regex,
-        scope,
-        exact_match,
-        query_clauses,
+        channel_name=channel_name,
+        query=query,
+        start_iso_date=start_iso_date,
+        end_iso_date=end_iso_date,
+        selected_codes=selected_codes,
+        hide_mode=hide_mode,
+        use_regex=use_regex,
+        scope=scope,
+        exact_match=exact_match,
+        query_clauses=query_clauses,
+        editor_filters=editor_filters,
+        should_cancel=should_cancel,
+        error_sink=error_sink,
     )
 
 

@@ -1,5 +1,5 @@
 EGS Scrapper Sağlık Kontrolü
-Tarih: 2026-04-17 10:22:46
+Tarih: 2026-04-18 22:08:37
 Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 
 === DOSYA KONTROLÜ ===
@@ -13,6 +13,7 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] core/__init__.py
 [OK] core/app_paths.py
 [OK] core/settings_manager.py
+[OK] core/settings_sync.py
 [OK] core/logger_setup.py
 [OK] core/rules_store.py
 [OK] core/text_utils.py
@@ -22,12 +23,15 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] data/cache_manager.py
 [OK] data/database_search.py
 [OK] data/database_merge.py
+[OK] data/news_repository.py
 [OK] dictionaries/__init__.py
 [OK] dictionaries/dictionary_store.py
 [OK] dictionaries/spell_backend.py
 [OK] dictionaries/title_transform.py
 [OK] dictionaries/title_spellcheck.py
 [OK] models/__init__.py
+[OK] models/archive_search_result.py
+[OK] models/news_item.py
 [OK] models/news_table_model.py
 [OK] models/news_list_model.py
 [OK] watchers/__init__.py
@@ -35,6 +39,7 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] parsing/__init__.py
 [OK] parsing/scanner.py
 [OK] parsing/parser.py
+[OK] parsing/news_service.py
 [OK] parsing/news_worker.py
 [OK] parsing/worker_manager.py
 [OK] dialogs/__init__.py
@@ -78,6 +83,7 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 
 [OK] import core.app_paths
     [OK] BASE_DIR
+    [OK] APP_DATA_DIR
     [OK] DATA_DIR
     [OK] DATABASES_DIR
     [OK] LOG_DIR
@@ -87,6 +93,9 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] import core.settings_manager
     [OK] load_settings
     [OK] save_settings
+
+[OK] import core.settings_sync
+    [OK] SettingsSync
 
 [OK] import core.logger_setup
     [OK] setup_logging
@@ -108,6 +117,10 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] import data.database
     [OK] init_db
     [OK] upsert_news
+    [OK] delete_news_for_paths
+    [OK] check_database_integrity
+    [OK] vacuum_databases
+    [OK] analyze_databases
     [OK] get_news_count_for_month
     [OK] get_all_codes_from_db
     [OK] search_archive
@@ -124,6 +137,9 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 
 [OK] import data.database_merge
     [OK] merge_external_database_into_channel
+
+[OK] import data.news_repository
+    [OK] NewsRepository
 
 [OK] import dictionaries.dictionary_store
     [OK] load_common_dictionary
@@ -153,6 +169,12 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
     [OK] apply_dictionary_pairs
     [OK] apply_title_spellcheck
 
+[OK] import models.archive_search_result
+    [OK] ArchiveSearchResult
+
+[OK] import models.news_item
+    [OK] NewsItem
+
 [OK] import models.news_table_model
     [OK] NewsTableModel
 
@@ -169,6 +191,9 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] import parsing.parser
     [OK] ParsedNews
     [OK] parse_egs_file
+
+[OK] import parsing.news_service
+    [OK] NewsIngestService
 
 [OK] import parsing.news_worker
     [OK] NewsLoadWorker
@@ -256,6 +281,6 @@ Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
 [OK] init_db çalıştı
 
 === ÖZET ===
-Başarılı kontrol: 201
+Başarılı kontrol: 221
 Hatalı kontrol: 0
 SONUÇ: SAĞLIK KONTROLÜ BAŞARILI

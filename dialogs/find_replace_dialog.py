@@ -38,53 +38,69 @@ class FindReplaceDialog(QDialog):
         layout = QVBoxLayout(self)
 
         row_find = QHBoxLayout()
-        row_find.addWidget(QLabel("Bul:"))
+        find_label = QLabel("Bul:")
+        find_label.setToolTip("Aranacak kelimeyi, ifadeyi veya regex desenini yaz.")
+        row_find.addWidget(find_label)
         self.find_input = QLineEdit()
+        self.find_input.setToolTip("Bulmak istediğin metni yaz. Regex açıksa bu alan desen olarak yorumlanır.")
         row_find.addWidget(self.find_input, 1)
         layout.addLayout(row_find)
 
         row_replace = QHBoxLayout()
-        row_replace.addWidget(QLabel("Değiştir:"))
+        replace_label = QLabel("Değiştir:")
+        replace_label.setToolTip("Bulunan metnin yerine yazılacak yeni ifadeyi gir.")
+        row_replace.addWidget(replace_label)
         self.replace_input = QLineEdit()
+        self.replace_input.setToolTip("Bulunan ifade bununla değiştirilir.")
         row_replace.addWidget(self.replace_input, 1)
         layout.addLayout(row_replace)
 
         row_scope = QHBoxLayout()
-        row_scope.addWidget(QLabel("Kapsam:"))
+        scope_label = QLabel("Kapsam:")
+        scope_label.setToolTip("Değiştirmenin hangi alanda uygulanacağını seç.")
+        row_scope.addWidget(scope_label)
         self.scope_combo = QComboBox()
         for key, label in self.SCOPE_OPTIONS:
             self.scope_combo.addItem(label, key)
         self.scope_combo.currentIndexChanged.connect(self.on_scope_changed)
+        self.scope_combo.setToolTip("Yalnızca önizleme, seçili haberler veya başlıklar gibi hedef alanı belirler.")
         row_scope.addWidget(self.scope_combo, 1)
         layout.addLayout(row_scope)
 
         self.regex_checkbox = QCheckBox("Regex kullan")
+        self.regex_checkbox.setToolTip("İşaretlersen 'Bul' alanı normal metin yerine regex deseni olarak çalışır.")
         layout.addWidget(self.regex_checkbox)
 
         self.add_to_dictionary_checkbox = QCheckBox("Sözlüğe ekle")
+        self.add_to_dictionary_checkbox.setToolTip("Başlık düzeltmelerinde yapılan değişikliği sözlüğe eklemek için işaretle.")
         layout.addWidget(self.add_to_dictionary_checkbox)
 
         self.scope_info = QLabel(
             f"Seçili: {selected_count} | Listelenen: {filtered_count} | Toplam: {total_count}"
         )
+        self.scope_info.setToolTip("İşlemin etkileyebileceği haber sayısını özetler.")
         layout.addWidget(self.scope_info)
 
         self.preview = QTextEdit()
         self.preview.setPlainText(self._result_text)
+        self.preview.setToolTip("Değişiklik uygulanınca ortaya çıkacak sonucu önizleme olarak gösterir.")
         layout.addWidget(self.preview, 1)
 
         buttons = QHBoxLayout()
 
         self.apply_btn = QPushButton("Önizlemeye Uygula")
         self.apply_btn.clicked.connect(self.apply_replace)
+        self.apply_btn.setToolTip("Yazdığın bul/değiştir kuralını önce önizleme alanına uygular.")
         buttons.addWidget(self.apply_btn)
 
         self.ok_btn = QPushButton("Tamam")
         self.ok_btn.clicked.connect(self.accept_dialog)
+        self.ok_btn.setToolTip("Önizlemedeki sonucu onaylayıp ana ekrana geri gönderir.")
         buttons.addWidget(self.ok_btn)
 
         self.cancel_btn = QPushButton("İptal")
         self.cancel_btn.clicked.connect(self.reject)
+        self.cancel_btn.setToolTip("Hiçbir değişikliği uygulamadan pencereyi kapatır.")
         buttons.addWidget(self.cancel_btn)
 
         buttons.addStretch(1)

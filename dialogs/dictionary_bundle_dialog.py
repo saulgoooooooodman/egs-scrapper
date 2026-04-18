@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QMessageBox,
+    QLabel,
 )
 
 from dictionaries.dictionary_store import (
@@ -24,12 +25,19 @@ class DictionaryBundleDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        info = QLabel("Ortak sözlüğü yedeklemek veya başka kurulumlara taşımak için bu pencereyi kullan.")
+        info.setWordWrap(True)
+        info.setToolTip("Dışa aktarma JSON dosyası üretir; içe aktarma ise o dosyadaki sözlüğü uygulamaya geri yükler.")
+        layout.addWidget(info)
+
         self.export_btn = QPushButton("Ortak Sözlüğü Dışa Aktar")
         self.export_btn.clicked.connect(self.export_common_dictionary)
+        self.export_btn.setToolTip("Ortak sözlüğü JSON dosyası olarak dışarı kaydeder.")
         layout.addWidget(self.export_btn)
 
         self.import_btn = QPushButton("Ortak Sözlüğü İçe Aktar")
         self.import_btn.clicked.connect(self.import_common_dictionary)
+        self.import_btn.setToolTip("Daha önce dışa aktardığın ortak sözlük dosyasını içeri alır.")
         layout.addWidget(self.import_btn)
 
     def export_common_dictionary(self):

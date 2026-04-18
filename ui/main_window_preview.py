@@ -23,6 +23,7 @@ def build_news_list_panel(self):
     left_layout.setSpacing(4)
 
     self.count_label = QLabel("Haber sayısı: 0")
+    self.count_label.setToolTip("Filtrelerden sonra listede görünen haber sayısını gösterir.")
 
     self.news_model = NewsTableModel([])
     self.news_view = QTableView()
@@ -71,14 +72,18 @@ def build_preview_panel(self):
     self.preview_corrected_title = QLabel("")
     self.preview_corrected_title.setWordWrap(True)
     self.preview_corrected_title.setStyleSheet("color:#9bd29b; font-weight:bold;")
-    self.preview_corrected_title.setToolTip("Başlığın düzeltilmiş/orijinal gösterimi.")
+    self.preview_corrected_title.setToolTip("Sözlük veya yazım denetimiyle düzeltilmiş başlık önerisini gösterir.")
 
     self.preview_info = QLabel("Bilgi:")
     self.preview_info.setWordWrap(True)
+    self.preview_info.setToolTip("Seçili haberin kod, tarih, editör ve dosya bilgilerini gösterir.")
 
     self.preview_text = QTextEdit()
     self.preview_text.setReadOnly(False)
-    self.preview_text.setToolTip("Metni düzenleyebilir, Ctrl+C ile kopyalayabilir, Ctrl+S ile kaydedebilirsin.")
+    self.preview_text.setToolTip(
+        "Seçili haberin düzenlenebilir metni. "
+        "Ctrl+S ile kaydedebilir, sağ tıkla düzenleme komutlarına ulaşabilirsin."
+    )
 
     self.copy_shortcut_preview = QShortcut(QKeySequence("Ctrl+C"), self.preview_text)
     self.copy_shortcut_preview.activated.connect(self.copy_from_preview)
@@ -88,7 +93,7 @@ def build_preview_panel(self):
 
     self.save_text_button = QPushButton("Metni Kaydet")
     self.save_text_button.clicked.connect(self.save_edited_text)
-    self.save_text_button.setToolTip("Düzenlenen metni veritabanına kaydeder.")
+    self.save_text_button.setToolTip("Önizleme alanındaki değişiklikleri seçili haber kaydına yazar.")
 
     right_layout.addWidget(self.preview_title)
     right_layout.addWidget(self.preview_corrected_title)

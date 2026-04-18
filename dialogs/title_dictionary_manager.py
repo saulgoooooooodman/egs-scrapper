@@ -34,19 +34,27 @@ class TitleDictionaryManagerDialog(QDialog):
 
         self.use_common_checkbox = QCheckBox("Ortak sözlüğü düzenle")
         self.use_common_checkbox.stateChanged.connect(self.reload_data)
+        self.use_common_checkbox.setToolTip("İşaretlersen tüm kanalların ortak kullandığı sözlüğü, kapalıysa bu kanala özel sözlüğü düzenlersin.")
         layout.addWidget(self.use_common_checkbox)
 
         form = QHBoxLayout()
-        form.addWidget(QLabel("Yanlış:"))
+        wrong_label = QLabel("Yanlış:")
+        wrong_label.setToolTip("Düzeltilmesini istediğin hatalı başlık parçasını yaz.")
+        form.addWidget(wrong_label)
         self.wrong_input = QLineEdit()
+        self.wrong_input.setToolTip("Program başlıkta bunu gördüğünde karşılığındaki doğru metni önerir.")
         form.addWidget(self.wrong_input, 1)
 
-        form.addWidget(QLabel("Doğru:"))
+        correct_label = QLabel("Doğru:")
+        correct_label.setToolTip("Hatalı ifadenin yerine kullanılacak doğru metni yaz.")
+        form.addWidget(correct_label)
         self.correct_input = QLineEdit()
+        self.correct_input.setToolTip("Başlık düzeltmede kullanılacak doğru ifade.")
         form.addWidget(self.correct_input, 1)
 
         self.add_btn = QPushButton("Ekle")
         self.add_btn.clicked.connect(self.add_entry)
+        self.add_btn.setToolTip("Yazdığın yanlış-doğru eşlemesini tabloya ekler.")
         form.addWidget(self.add_btn)
 
         layout.addLayout(form)
@@ -56,15 +64,18 @@ class TitleDictionaryManagerDialog(QDialog):
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
+        self.table.setToolTip("Kaydedilmiş başlık düzeltme eşleşmeleri. Hücreleri doğrudan düzenleyebilirsin.")
         layout.addWidget(self.table, 1)
 
         actions = QHBoxLayout()
         self.delete_btn = QPushButton("Seçiliyi Sil")
         self.delete_btn.clicked.connect(self.delete_selected)
+        self.delete_btn.setToolTip("Tablodaki seçili sözlük kaydını siler.")
         actions.addWidget(self.delete_btn)
 
         self.save_btn = QPushButton("Kaydet")
         self.save_btn.clicked.connect(self.save_data)
+        self.save_btn.setToolTip("Tablodaki sözlük değişikliklerini kalıcı olarak kaydeder.")
         actions.addWidget(self.save_btn)
 
         actions.addStretch(1)

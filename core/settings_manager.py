@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from core.atomic_io import atomic_write_json
 from core.app_paths import SETTINGS_FILE
 
 
@@ -47,7 +48,4 @@ def load_settings() -> dict:
 def save_settings(settings: dict):
     merged = dict(DEFAULT_SETTINGS)
     merged.update(settings or {})
-    SETTINGS_FILE.write_text(
-        json.dumps(merged, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
+    atomic_write_json(SETTINGS_FILE, merged, ensure_ascii=False, indent=2)

@@ -55,8 +55,11 @@ class BackfillDialog(QDialog):
 
         buttons = QHBoxLayout()
         self.start_button = QPushButton("Taramayı Başlat")
+        self.cancel_button = QPushButton("İptal")
+        self.cancel_button.setEnabled(False)
         self.close_button = QPushButton("Kapat")
         buttons.addWidget(self.start_button)
+        buttons.addWidget(self.cancel_button)
         buttons.addWidget(self.close_button)
         layout.addLayout(buttons)
 

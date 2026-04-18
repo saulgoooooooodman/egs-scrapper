@@ -43,6 +43,14 @@ class WorkerManager:
     def stop_all_workers(self):
         self._ensure_thread_store()
 
+        for worker in list(self._workers):
+            try:
+                request_cancel = getattr(worker, "request_cancel", None)
+                if callable(request_cancel):
+                    request_cancel()
+            except Exception:
+                pass
+
         for thread in list(self._threads):
             try:
                 if thread.isRunning():

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 import os
 from pathlib import Path
+from threading import Event
 
 from PySide6.QtCore import QObject, Signal
 
-from parsing.parser import parse_egs_file
-from dictionaries.title_spellcheck import apply_title_spellcheck
+from models.news_item import NewsItem
+from parsing.news_service import NewsIngestService
+from tools.error_reporter import record_parse_error
 
 
 class NewsLoadWorker(QObject):
@@ -20,41 +23,31 @@ class NewsLoadWorker(QObject):
         self.files = list(files)
         self.channel_name = channel_name
         self.force_refresh = force_refresh
+        self.ingest_service = NewsIngestService(channel_name)
+        self._cancel_event = Event()
 
-    def process_file(self, file_path: Path):
+    def request_cancel(self):
+        self._cancel_event.set()
+
+    def process_file(self, file_path: Path) -> NewsItem | None:
         try:
-            stat = os.stat(file_path)
-            mtime = stat.st_mtime
-            size = stat.st_size
-
-            news = parse_egs_file(file_path, self.channel_name)
-            corrected_title = apply_title_spellcheck(news.title, self.channel_name)
-
-            final_text = news.final_text
-            if corrected_title and corrected_title != news.title:
-                lines = final_text.splitlines()
-                if lines:
-                    lines[0] = corrected_title
-                    final_text = "\n".join(lines)
-
-            return {
-                "path": str(file_path),
-                "file_name": file_path.name,
-                "title": news.title,
-                "corrected_title": corrected_title,
-                "news_code": news.news_code,
-                "news_category": news.news_category,
-                "format_code": news.format_code,
-                "format_name": news.format_name,
-                "summary": news.summary,
-                "body": news.body,
-                "kj_lines": news.kj_lines,
-                "final_text": final_text,
-                "editors": news.editors,
-                "mtime": mtime,
-                "size": size,
-            }
-        except Exception:
+            if self._cancel_event.is_set():
+                return None
+            return self.ingest_service.build_news_item(file_path)
+        except Exception as exc:
+            logging.getLogger("EGS.NewsWorker").exception(
+                "Dosya işlenemedi | kanal=%s | dosya=%s",
+                self.channel_name,
+                file_path,
+            )
+            try:
+                record_parse_error(self.channel_name, str(file_path), exc, phase="worker")
+            except Exception:
+                logging.getLogger("EGS.NewsWorker").exception(
+                    "Parse hata raporu yazilamadi | kanal=%s | dosya=%s",
+                    self.channel_name,
+                    file_path,
+                )
             return None
 
     def run(self):
@@ -69,15 +62,25 @@ class NewsLoadWorker(QObject):
             max_workers = min(4, max(1, os.cpu_count() or 2))
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = [executor.submit(self.process_file, f) for f in self.files]
+                futures = []
+                for file_path in self.files:
+                    if self._cancel_event.is_set():
+                        break
+                    futures.append(executor.submit(self.process_file, file_path))
 
                 for i, future in enumerate(as_completed(futures), start=1):
+                    if self._cancel_event.is_set():
+                        break
                     result = future.result()
                     if result:
                         results.append(result)
                     self.progress.emit(i, total)
 
-            results.sort(key=lambda x: (x.get("news_code", ""), x.get("title", "")))
+            if self._cancel_event.is_set():
+                self.finished.emit(results)
+                return
+
+            results.sort(key=lambda item: (item.news_code, item.title))
             self.finished.emit(results)
 
         except Exception as exc:

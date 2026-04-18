@@ -27,11 +27,13 @@ class InfoDialog(QDialog):
             f"{APP_DESCRIPTION}"
         )
         summary.setWordWrap(True)
+        summary.setToolTip("Kurulu sürümün kısa özetini ve yayın bilgisini gösterir.")
         layout.addWidget(summary)
 
         self.text = QTextEdit()
         self.text.setReadOnly(True)
         self.text.setPlainText(self._build_changelog_text())
+        self.text.setToolTip("Sürüm geçmişi ve yapılan değişiklikler burada listelenir.")
         layout.addWidget(self.text, 1)
 
     def _build_changelog_text(self) -> str:

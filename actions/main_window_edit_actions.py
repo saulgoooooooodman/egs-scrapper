@@ -7,11 +7,17 @@ from PySide6.QtCore import QItemSelectionModel
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.title_dictionary_manager import TitleDictionaryManagerDialog
 from dictionaries.dictionary_store import add_title_dictionary_entry
-from data.database import upsert_news
-from core.text_utils import lower_tr, title_tr, upper_tr
+from data.news_repository import NewsRepository
+from core.text_utils import transform_case_for_channel
 
 
 class MainWindowEditActions:
+    def _news_repository(self) -> NewsRepository:
+        return NewsRepository(self.channel_name)
+
+    def _transform_case(self, text: str, mode: str) -> str:
+        return transform_case_for_channel(text, mode, self.channel_name)
+
     def open_find_replace_dialog(self):
         selected_rows = self.news_view.selectionModel().selectedRows()
         selected_count = len(selected_rows)
@@ -138,7 +144,7 @@ class MainWindowEditActions:
             if not was_changed:
                 continue
 
-            upsert_news(self.channel_name, item)
+            self._news_repository().save_item(item)
             changed += 1
 
             if item is current_item:
@@ -274,7 +280,7 @@ class MainWindowEditActions:
         if self.preview_text.hasFocus():
             cursor = self.preview_text.textCursor()
             text = cursor.selectedText() if cursor.hasSelection() else self.preview_text.toPlainText()
-            text = upper_tr(text)
+            text = self._transform_case(text, "upper")
             if cursor.hasSelection():
                 cursor.insertText(text)
             else:
@@ -284,7 +290,7 @@ class MainWindowEditActions:
         if self.preview_text.hasFocus():
             cursor = self.preview_text.textCursor()
             text = cursor.selectedText() if cursor.hasSelection() else self.preview_text.toPlainText()
-            text = lower_tr(text)
+            text = self._transform_case(text, "lower")
             if cursor.hasSelection():
                 cursor.insertText(text)
             else:
@@ -294,7 +300,7 @@ class MainWindowEditActions:
         if self.preview_text.hasFocus():
             cursor = self.preview_text.textCursor()
             text = cursor.selectedText() if cursor.hasSelection() else self.preview_text.toPlainText()
-            text = title_tr(text)
+            text = self._transform_case(text, "title")
             if cursor.hasSelection():
                 cursor.insertText(text)
             else:
@@ -380,7 +386,7 @@ class MainWindowEditActions:
             return
 
         data["final_text"] = edited_text
-        upsert_news(self.channel_name, data)
+        self._news_repository().save_item(data)
         self.status_label.setText("Düzenlenmiş haber metni kaydedildi")
 
     def select_same_codes(self):

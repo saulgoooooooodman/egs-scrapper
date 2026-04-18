@@ -82,6 +82,14 @@ echo [8/8] Gerekli klasorler hazirlaniyor...
 if not exist "dist\EGS Scrapper\databases" mkdir "dist\EGS Scrapper\databases"
 if not exist "dist\EGS Scrapper\logs" mkdir "dist\EGS Scrapper\logs"
 if not exist "dist\EGS Scrapper\error_reports" mkdir "dist\EGS Scrapper\error_reports"
+> "dist\EGS Scrapper\settings.json" echo {
+>> "dist\EGS Scrapper\settings.json" echo   "user_name": "",
+>> "dist\EGS Scrapper\settings.json" echo   "channel_name": "A NEWS",
+>> "dist\EGS Scrapper\settings.json" echo   "root_folder": "C:\\DeeR",
+>> "dist\EGS Scrapper\settings.json" echo   "profile_avatar_path": "",
+>> "dist\EGS Scrapper\settings.json" echo   "remember_me": false,
+>> "dist\EGS Scrapper\settings.json" echo   "show_startup_wizard": true
+>> "dist\EGS Scrapper\settings.json" echo }
 echo Tamam.
 echo.
 

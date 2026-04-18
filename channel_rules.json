@@ -170,6 +170,32 @@
           "OZEL DOSYA"
         ]
       }
+    },
+    "news_codes": {
+      "A": "ANKARA HABER",
+      "AZ": "ANALİZ",
+      "C": "CANLI",
+      "D": "DIŞ HABER",
+      "DA": "DIŞ HABER AKŞAM",
+      "DG": "DIŞ HABER GECE",
+      "DS": "DIŞ HABER SABAH",
+      "ED": "EDİTÖR SES",
+      "I": "İSTANBUL HABER",
+      "IA": "İSTANBUL HABER AKŞAM",
+      "IG": "İSTANBUL HABER GECE",
+      "IS": "İSTANBUL HABER SABAH",
+      "MM": "MEMLEKET MESELESİ",
+      "P": "PORTRE",
+      "S": "SPOR",
+      "YA": "YURT HABER AKŞAM",
+      "YG": "YURT HABER GECE",
+      "YS": "YURT HABER SABAH",
+      "BTH": "BİR TÜRKÜNÜN HİKAYESİ",
+      "E": "EKONOMİ",
+      "PA": "PERDE ARKASI",
+      "YY": "ÖZEL DOSYA",
+      "YY-(OD)": "ÖZEL DOSYA",
+      "YS-(OD)": "ÖZEL DOSYA"
     }
   },
   "A NEWS": {
@@ -179,6 +205,11 @@
     "codes": {
       "E": {
         "label": "EKONOMİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "LIVE": {
+        "label": "CANLI",
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
@@ -193,7 +224,7 @@
         "dedupe_prefix_words": []
       },
       "VO": {
-        "label": "SES",
+        "label": "VOICE OVER",
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
@@ -222,6 +253,11 @@
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
+      "WHZ": {
+        "label": "HORIZON",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
       "WME": {
         "label": "ORTA DOĞU",
         "prepend_to_title": false,
@@ -236,24 +272,31 @@
         "label": "BRİTANYA ADASI",
         "prepend_to_title": false,
         "dedupe_prefix_words": []
-      },
-      "WHZ": {
-        "label": "SOFT HABERLER",
-        "prepend_to_title": false,
-        "dedupe_prefix_words": []
-      },
-      "LIVE": {
-        "label": "CANLI",
-        "prepend_to_title": false,
-        "dedupe_prefix_words": []
       }
+    },
+    "news_codes": {
+      "E": "EKONOMİ",
+      "LIVE": "CANLI",
+      "S": "SPOR",
+      "T": "TÜRKİYE",
+      "VO": "VOICE OVER",
+      "WAF": "AFRİKA KITASI",
+      "WAM": "AMERİKA KITASI",
+      "WAS": "ASYA KITASI",
+      "WAU": "AVUSTRALYA KITASI",
+      "WEU": "AVRUPA KITASI",
+      "WHZ": "HORIZON",
+      "WME": "ORTA DOĞU",
+      "WRU": "DOĞU AVRUPA",
+      "WUK": "BRİTANYA ADASI"
     }
   },
   "ATV": {
     "hidden_exact_titles": [],
     "hidden_title_contains_whole_words": [],
     "hidden_title_startswith_symbols_or_digits": false,
-    "codes": {}
+    "codes": {},
+    "news_codes": {}
   },
   "A SPOR": {
     "hidden_exact_titles": [
@@ -327,6 +370,21 @@
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       }
+    },
+    "news_codes": {
+      "B": "BARKO",
+      "C": "CANLI",
+      "Z": "BÜLTEN",
+      "S": "SPOR",
+      "KJ": "KJ",
+      "G": "GRAFİK",
+      "SA": "SPOR AJANSI",
+      "SG": "SPOR GÜNDEMİ",
+      "YHS": "YAŞASIN HAFTA SONU",
+      "90+1": "90+1",
+      "AH": "ANA HABER BÜLTENİ",
+      "SS": "SON SAYFA",
+      "TO": "TAKIM OYUNU"
     }
   },
   "A PARA": {
@@ -381,6 +439,17 @@
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       }
+    },
+    "news_codes": {
+      "AP": "HABER",
+      "B": "BARKO",
+      "C": "CANLI",
+      "DS": "DIŞ HABER",
+      "G": "GRAFİK",
+      "K": "KONUK",
+      "S": "SES",
+      "E": "EKONOMİ",
+      "K-STD": "KONUK STÜDYO"
     }
   }
 }

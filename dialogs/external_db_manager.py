@@ -36,38 +36,44 @@ class ExternalDbManagerDialog(QDialog):
         self.db_paths = self._load_paths()
 
         layout = QVBoxLayout(self)
-        layout.addWidget(
-            QLabel(
-                "Arşiv aramada kullanılacak dış veritabanlarını buradan ekleyebilirsin."
-            )
+        info_label = QLabel(
+            "Arşiv aramada kullanılacak dış veritabanlarını buradan ekleyebilirsin."
         )
+        info_label.setToolTip("Buraya eklenen veritabanları dahili aylık arşivlerle birlikte aranır.")
+        layout.addWidget(info_label)
 
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(self.list_widget.SelectionMode.SingleSelection)
+        self.list_widget.setToolTip("Arşiv aramada kullanılacak harici SQLite veritabanlarının listesi.")
         layout.addWidget(self.list_widget, 1)
 
         self.status_label = QLabel("")
         self.status_label.setWordWrap(True)
+        self.status_label.setToolTip("Kayıtlı dış veritabanı sayısını veya durum bilgisini gösterir.")
         layout.addWidget(self.status_label)
 
         buttons = QHBoxLayout()
 
         self.add_btn = QPushButton("Veritabanı Ekle")
         self.add_btn.clicked.connect(self.add_db)
+        self.add_btn.setToolTip("Arşiv aramaya dahil etmek üzere yeni bir SQLite veritabanı dosyası seçer.")
         buttons.addWidget(self.add_btn)
 
         self.remove_btn = QPushButton("Seçileni Kaldır")
         self.remove_btn.clicked.connect(self.remove_selected)
+        self.remove_btn.setToolTip("Listede seçili olan dış veritabanını arama havuzundan çıkarır.")
         buttons.addWidget(self.remove_btn)
 
         self.open_folder_btn = QPushButton("Klasörde Göster")
         self.open_folder_btn.clicked.connect(self.open_selected_folder)
+        self.open_folder_btn.setToolTip("Seçili veritabanı dosyasının bulunduğu klasörü açar.")
         buttons.addWidget(self.open_folder_btn)
 
         buttons.addStretch(1)
 
         self.close_btn = QPushButton("Kapat")
         self.close_btn.clicked.connect(self.accept)
+        self.close_btn.setToolTip("Pencereyi kapatır.")
         buttons.addWidget(self.close_btn)
 
         layout.addLayout(buttons)

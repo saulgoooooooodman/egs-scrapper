@@ -4,9 +4,8 @@ import sys
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
-from core.settings_manager import save_settings
 from dialogs.help_dialog import HelpDialog
 from dialogs.info_dialog import InfoDialog
 from dialogs.log_viewer_dialog import LogViewerDialog
@@ -19,9 +18,46 @@ from core.rules_store import get_channel_rules
 from dictionaries.title_spellcheck import reload_spell_backend_status, get_spell_backend_status_text
 from dialogs.dictionary_bundle_dialog import DictionaryBundleDialog
 from dialogs.db_merge_dialog import DbMergeDialog
+from data.database import analyze_databases, check_database_integrity, vacuum_databases
 
 
 class MainWindowViewActions:
+    def _format_size_text(self, value: int) -> str:
+        size = float(max(int(value or 0), 0))
+        units = ["B", "KB", "MB", "GB"]
+        unit_index = 0
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024
+            unit_index += 1
+        if unit_index == 0:
+            return f"{int(size)} {units[unit_index]}"
+        return f"{size:.1f} {units[unit_index]}"
+
+    def _show_database_maintenance_result(self, title: str, summary: str, details: list[str]):
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle(title)
+        dialog.setIcon(QMessageBox.Information)
+        dialog.setText(summary)
+        if details:
+            dialog.setDetailedText("\n".join(details))
+        dialog.exec()
+
+    def _run_database_maintenance(self, title: str, callback):
+        result = None
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            result = callback()
+        except Exception as exc:
+            result = {
+                "kind": "error",
+                "title": title,
+                "message": f"{title} sırasında hata oluştu:\n{exc}",
+            }
+        finally:
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
+        return result
+
     def _apply_styles(self):
         self.setStyleSheet("""
             QTableView::item {
@@ -67,20 +103,22 @@ class MainWindowViewActions:
         self._apply_always_on_top(always_on_top)
 
         show_previous = bool(self.settings.get("show_previous_day_news", True))
+        hide_previous = bool(self.settings.get("hide_previous_day_news", not show_previous))
         if hasattr(self, "action_show_previous_day_news"):
-            self.action_show_previous_day_news.setChecked(show_previous)
+            self.action_show_previous_day_news.setChecked(hide_previous)
 
         self.apply_ui_font_size(int(self.settings.get("ui_font_size", 11)), save=False)
         self._sync_duplicate_menu_checks()
 
-    def save_main_ui_settings(self):
+    def save_main_ui_settings(self, show_message: bool = False):
         self.settings["main_search_scope"] = self.search_scope_combo.currentText()
         self.settings["main_search_regex"] = bool(self.search_regex_checkbox.isChecked())
         self.settings["main_selected_codes"] = sorted(self.selected_codes)
         self.settings["main_code_filter_hide_mode"] = self.code_filter_hide_mode
         self.settings["main_hide_code_column"] = self.news_view.isColumnHidden(0)
-        save_settings(self.settings)
-        self.status_label.setText("Profil ayarları kaydedildi")
+        self.schedule_settings_save()
+        if show_message:
+            self.status_label.setText("Gorunum ayarlari kaydedildi")
 
     def hide_code_column(self):
         self.news_view.setColumnHidden(0, True)
@@ -124,7 +162,7 @@ class MainWindowViewActions:
         self.preview_info.setFont(info_font)
 
         if save:
-            save_settings(self.settings)
+            self.schedule_settings_save()
             self.status_label.setText(f"Yazı boyutu: {size} pt")
 
     def increase_ui_font_size(self):
@@ -140,19 +178,19 @@ class MainWindowViewActions:
         self.settings["main_duplicate_mode"] = "latest"
         self._sync_duplicate_menu_checks()
         self.apply_filters()
-        save_settings(self.settings)
+        self.schedule_settings_save()
 
     def set_duplicate_mode_oldest(self):
         self.settings["main_duplicate_mode"] = "oldest"
         self._sync_duplicate_menu_checks()
         self.apply_filters()
-        save_settings(self.settings)
+        self.schedule_settings_save()
 
     def set_duplicate_mode_off(self):
         self.settings["main_duplicate_mode"] = "off"
         self._sync_duplicate_menu_checks()
         self.apply_filters()
-        save_settings(self.settings)
+        self.schedule_settings_save()
 
     def _apply_always_on_top(self, enabled: bool):
         self.setWindowFlag(Qt.WindowStaysOnTopHint, enabled)
@@ -161,13 +199,13 @@ class MainWindowViewActions:
     def toggle_always_on_top(self):
         enabled = self.action_always_on_top.isChecked()
         self.settings["always_on_top"] = enabled
-        save_settings(self.settings)
+        self.schedule_settings_save()
         self._apply_always_on_top(enabled)
 
     def toggle_remember_window_geometry(self):
         enabled = self.action_remember_window.isChecked()
         self.settings["remember_window_geometry"] = enabled
-        save_settings(self.settings)
+        self.schedule_settings_save()
         self.status_label.setText("Pencere konumu ayarı güncellendi")
 
     def focus_search(self):
@@ -220,6 +258,115 @@ class MainWindowViewActions:
     def open_databases_folder(self):
         os.startfile(str(DATABASES_DIR))
 
+    def run_database_integrity_check(self):
+        def _task():
+            results = check_database_integrity(self.channel_name)
+            if not results:
+                return {
+                    "kind": "info",
+                    "title": "Veritabanı Sağlığı",
+                    "message": "Kontrol edilecek veritabanı bulunamadı.",
+                }
+
+            ok_count = sum(1 for item in results if item["ok"])
+            details = []
+            for item in results:
+                status = "OK" if item["ok"] else "HATA"
+                detail = ", ".join(item["messages"])
+                details.append(f"[{status}] {item['path']} -> {detail}")
+
+            summary = f"{ok_count}/{len(results)} veritabanı sağlıklı."
+            return {
+                "kind": "result",
+                "title": "Veritabanı Sağlığı",
+                "summary": summary,
+                "details": details,
+                "status": f"Veritabanı bütünlük kontrolü tamamlandı: {summary}",
+            }
+
+        result = self._run_database_maintenance("Veritabanı Sağlığı", _task)
+        self._present_database_maintenance_feedback(result)
+
+    def run_database_vacuum(self):
+        def _task():
+            results = vacuum_databases(self.channel_name)
+            if not results:
+                return {
+                    "kind": "info",
+                    "title": "Veritabanını Toparla",
+                    "message": "Toparlanacak veritabanı bulunamadı.",
+                }
+
+            reclaimed_total = sum(item["reclaimed_bytes"] for item in results)
+            details = []
+            for item in results:
+                details.append(
+                    f"{item['path']} -> "
+                    f"{self._format_size_text(item['before_size'])} -> "
+                    f"{self._format_size_text(item['after_size'])} "
+                    f"(kazanılan: {self._format_size_text(item['reclaimed_bytes'])})"
+                )
+
+            summary = (
+                f"{len(results)} veritabanı toparlandı. "
+                f"Toplam kazanılan alan: {self._format_size_text(reclaimed_total)}"
+            )
+            return {
+                "kind": "result",
+                "title": "Veritabanını Toparla",
+                "summary": summary,
+                "details": details,
+                "status": summary,
+            }
+
+        result = self._run_database_maintenance("Veritabanını Toparla", _task)
+        self._present_database_maintenance_feedback(result)
+
+    def run_database_analyze(self):
+        def _task():
+            results = analyze_databases(self.channel_name)
+            if not results:
+                return {
+                    "kind": "info",
+                    "title": "Arama İstatistiklerini Yenile",
+                    "message": "Güncellenecek veritabanı bulunamadı.",
+                }
+
+            details = [item["path"] for item in results]
+            summary = f"{len(results)} veritabanı için arama istatistikleri yenilendi."
+            return {
+                "kind": "result",
+                "title": "Arama İstatistiklerini Yenile",
+                "summary": summary,
+                "details": details,
+                "status": summary,
+            }
+
+        result = self._run_database_maintenance("Arama İstatistiklerini Yenile", _task)
+        self._present_database_maintenance_feedback(result)
+
+    def _present_database_maintenance_feedback(self, result):
+        if not result:
+            return
+
+        kind = result.get("kind")
+        title = result.get("title", "Bilgi")
+        if kind == "error":
+            QMessageBox.critical(self, title, result.get("message", "İşlem sırasında hata oluştu."))
+            return
+        if kind == "info":
+            QMessageBox.information(self, title, result.get("message", "Bilgi yok."))
+            return
+        if kind == "result":
+            status = result.get("status", "")
+            if status:
+                self.status_label.setText(status)
+            self._show_database_maintenance_result(
+                title,
+                result.get("summary", ""),
+                result.get("details", []),
+            )
+
     def open_external_db_manager(self):
         dialog = ExternalDbManagerDialog(self)
         dialog.exec()
@@ -237,7 +384,9 @@ class MainWindowViewActions:
         QMessageBox.information(
             self,
             "Yazım Denetimi",
-            get_spell_backend_status_text()
+            "Yazım denetimi yeniden algılandı.\n"
+            "Program, gelişmiş yazım denetimi bileşenini yeniden kontrol etti.\n\n"
+            f"{get_spell_backend_status_text()}"
         )
         self.load_news(force_refresh=True)
 
@@ -276,7 +425,8 @@ class MainWindowViewActions:
             self.save_main_ui_settings()
 
     def toggle_previous_day_news(self):
-        enabled = self.action_show_previous_day_news.isChecked()
-        self.settings["show_previous_day_news"] = enabled
-        save_settings(self.settings)
+        hide_previous = self.action_show_previous_day_news.isChecked()
+        self.settings["hide_previous_day_news"] = hide_previous
+        self.settings["show_previous_day_news"] = not hide_previous
+        self.schedule_settings_save()
         self.apply_filters()

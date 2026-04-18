@@ -41,6 +41,7 @@ def build_main_window_ui(self):
 
     splitter = QSplitter()
     splitter.setChildrenCollapsible(False)
+    splitter.setToolTip("Sol tarafta haber listesi, sağ tarafta seçili haberin önizlemesi bulunur.")
 
     left_widget = build_news_list_panel(self)
     right_widget = build_preview_panel(self)

@@ -6,25 +6,25 @@ from PySide6.QtWidgets import QDialog, QMessageBox
 
 from dialogs.backfill_dialog import BackfillDialog
 from dialogs.startup_dialog import StartupDialog
-from core.settings_manager import save_settings
 from parsing.backfill_worker import BackfillWorker
 from parsing.scanner import scan_news_files
 from data.database import (
-    clear_cache_for_channel,
     connect_db,
-    get_news_count_for_month,
-    get_news_for_date,
-    get_db_path,
+    delete_news_for_paths,
     init_db,
-    upsert_news,
 )
 from data.cache_manager import ensure_cache_table, is_cached, update_cache, clear_cache
+from data.news_repository import NewsRepository
+from models.news_item import NewsItem
 from parsing.news_worker import NewsLoadWorker
 from parsing.worker_manager import WorkerManager
 from dictionaries.title_spellcheck import get_spell_backend_status_text
 
 
 class MainWindowDataActions(WorkerManager):
+    def _news_repository(self) -> NewsRepository:
+        return NewsRepository(self.channel_name)
+
     def _next_load_token(self) -> int:
         token = getattr(self, "_load_request_token", 0) + 1
         self._load_request_token = token
@@ -49,8 +49,20 @@ class MainWindowDataActions(WorkerManager):
     def _normalize_news_code(self, code) -> str:
         return str(code or "").strip().upper()
 
+    def _hide_previous_day_news_enabled(self) -> bool:
+        if "hide_previous_day_news" in self.settings:
+            return bool(self.settings.get("hide_previous_day_news", False))
+        return not bool(self.settings.get("show_previous_day_news", True))
+
+    def _set_load_metrics(self, *, scanned_count=0, to_process_count=0, cached_count=0):
+        self._current_load_metrics = {
+            "scanned_count": int(scanned_count or 0),
+            "to_process_count": int(to_process_count or 0),
+            "cached_count": int(cached_count or 0),
+        }
+
     def _should_hide_previous_day_item(self, item: dict) -> bool:
-        if self.settings.get("show_previous_day_news", True):
+        if not self._hide_previous_day_news_enabled():
             return False
 
         from parsing.parser import extract_story_day_from_name
@@ -92,9 +104,7 @@ class MainWindowDataActions(WorkerManager):
 
         selected = startup.result_data
         self.settings.update(selected)
-
-        if selected["remember_me"]:
-            save_settings(self.settings)
+        self.save_settings_now()
 
         self.user_name = selected["user_name"]
         self.channel_name = selected["channel_name"]
@@ -102,7 +112,7 @@ class MainWindowDataActions(WorkerManager):
         self.profile_avatar_path = selected.get("profile_avatar_path", "")
 
         self.profile_button.setText(self.user_name)
-        self.profile_label.setText(f"{self.channel_name} | {self.root_folder}")
+        self.profile_label.setText(self.channel_name)
         if hasattr(self, "channel_logo_label"):
             try:
                 from ui.main_window_topbar import update_channel_logo, update_profile_avatar
@@ -136,6 +146,8 @@ class MainWindowDataActions(WorkerManager):
 
     def load_news(self, force_refresh=False):
         load_token = self._next_load_token()
+        repository = self._news_repository()
+        self._set_load_metrics()
 
         try:
             if hasattr(self, "stop_all_workers"):
@@ -148,7 +160,7 @@ class MainWindowDataActions(WorkerManager):
         date_str = self.date_edit.date().toString("dd.MM.yyyy")
         iso_date = self.date_edit.date().toString("yyyy-MM-dd")
 
-        init_db(self.channel_name, iso_date)
+        repository.ensure_storage(iso_date)
 
         try:
             self.news_model.set_items([])
@@ -170,12 +182,11 @@ class MainWindowDataActions(WorkerManager):
 
         if not files:
             self.count_label.setText("Haber sayısı: 0")
-            db_count = get_news_count_for_month(self.channel_name, iso_date)
+            db_count = repository.count_for_month(iso_date)
             self.status_label.setText(f"Hiç haber bulunamadı | DB: {db_count}")
             self.progress_bar.setVisible(False)
             return
 
-        db_file = get_db_path(self.channel_name, iso_date)
         self.conn = connect_db(self.channel_name, iso_date)
         ensure_cache_table(self.conn)
 
@@ -195,24 +206,33 @@ class MainWindowDataActions(WorkerManager):
         self.progress_bar.setVisible(True)
         self.progress_bar.setMaximum(max(1, len(filtered_files)))
         self.progress_bar.setValue(0)
+        self._set_load_metrics(
+            scanned_count=len(files),
+            to_process_count=len(filtered_files),
+            cached_count=cached_count,
+        )
 
         self.status_label.setText(
-            f"Yükleniyor... İşlenecek: {len(filtered_files)} | Önbellekten: {cached_count}"
+            f"Yükleniyor... Taranan: {len(files)} | İşlenecek: {len(filtered_files)} | Önbellekten: {cached_count}"
         )
 
         self._close_active_connection()
 
         if not filtered_files:
-            self.news_items = get_news_for_date(self.channel_name, iso_date)
+            self.news_items = repository.fetch_by_date(iso_date)
             self.progress_bar.setVisible(False)
             try:
                 self.apply_filters()
             except Exception:
                 traceback.print_exc()
 
-            total_db = get_news_count_for_month(self.channel_name, iso_date)
+            total_db = repository.count_for_month(iso_date)
+            metrics = getattr(self, "_current_load_metrics", {})
             self.status_label.setText(
-                f"{len(self.news_items)} haber | DB: {total_db} | {get_spell_backend_status_text()}"
+                f"{len(self.news_items)} haber | DB: {total_db} | "
+                f"Taranan: {metrics.get('scanned_count', 0)} | "
+                f"Önbellekten: {metrics.get('cached_count', 0)} | "
+                f"{get_spell_backend_status_text()}"
             )
 
             try:
@@ -226,6 +246,7 @@ class MainWindowDataActions(WorkerManager):
         worker._iso_date = iso_date
         worker._date_str = date_str
         worker._channel_name = self.channel_name
+        worker._force_refresh = force_refresh
         self.start_worker(worker)
 
     def on_worker_progress(self, current, total):
@@ -234,7 +255,12 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             self.progress_bar.setValue(current)
-            self.status_label.setText(f"Yükleniyor... {current}/{total}")
+            metrics = getattr(self, "_current_load_metrics", {})
+            self.status_label.setText(
+                f"Yükleniyor... {current}/{total} | "
+                f"Taranan: {metrics.get('scanned_count', 0)} | "
+                f"Önbellekten: {metrics.get('cached_count', 0)}"
+            )
         except Exception:
             traceback.print_exc()
 
@@ -255,17 +281,32 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             channel_name, iso_date, date_str = self._get_sender_load_context()
+            force_refresh = bool(getattr(self.sender(), "_force_refresh", False))
             indexed_count = 0
-            conn = connect_db(channel_name, iso_date)
+            deleted_count = 0
+            repository = NewsRepository(channel_name)
+            conn = repository.connect(iso_date)
             ensure_cache_table(conn)
 
             try:
+                if force_refresh and results:
+                    try:
+                        deleted_count = delete_news_for_paths(
+                            channel_name,
+                            [NewsItem.from_dict(item).path for item in results],
+                            iso_date=iso_date,
+                            conn=conn,
+                        )
+                    except Exception:
+                        traceback.print_exc()
+
                 for item in results:
-                    item["iso_date"] = iso_date
-                    item["date_str"] = date_str
+                    news_item = NewsItem.from_dict(item)
+                    news_item.iso_date = iso_date
+                    news_item.date_str = date_str
 
                     try:
-                        upsert_news(channel_name, item, conn=conn)
+                        repository.save_item(news_item, conn=conn)
                         indexed_count += 1
                     except Exception:
                         traceback.print_exc()
@@ -273,9 +314,9 @@ class MainWindowDataActions(WorkerManager):
                     try:
                         update_cache(
                             conn,
-                            item["path"],
-                            item["mtime"],
-                            item["size"]
+                            news_item.path,
+                            news_item.mtime,
+                            news_item.size
                         )
                     except Exception:
                         traceback.print_exc()
@@ -291,7 +332,7 @@ class MainWindowDataActions(WorkerManager):
                     traceback.print_exc()
 
             try:
-                self.news_items = get_news_for_date(channel_name, iso_date)
+                self.news_items = repository.fetch_by_date(iso_date)
             except Exception:
                 traceback.print_exc()
                 self.news_items = []
@@ -307,13 +348,18 @@ class MainWindowDataActions(WorkerManager):
                 traceback.print_exc()
 
             try:
-                total_db = get_news_count_for_month(channel_name, iso_date)
+                total_db = repository.count_for_month(iso_date)
             except Exception:
                 traceback.print_exc()
                 total_db = 0
 
             self.status_label.setText(
-                f"{len(self.news_items)} haber | DB: {total_db} | Yazılan: {indexed_count} | {get_spell_backend_status_text()}"
+                f"{len(self.news_items)} haber | DB: {total_db} | "
+                f"Taranan: {self._current_load_metrics.get('scanned_count', 0)} | "
+                f"İşlenen: {self._current_load_metrics.get('to_process_count', 0)} | "
+                f"Önbellekten: {self._current_load_metrics.get('cached_count', 0)} | "
+                f"Silinen: {deleted_count} | Yazılan: {indexed_count} | "
+                f"{get_spell_backend_status_text()}"
             )
 
         except Exception:
@@ -331,6 +377,7 @@ class MainWindowDataActions(WorkerManager):
             return
 
         self.backfill_dialog.start_button.setEnabled(False)
+        self.backfill_dialog.cancel_button.setEnabled(True)
         self.backfill_dialog.progress_label.setText("Tarama başlatılıyor...")
         self.backfill_dialog.progress.setValue(0)
 
@@ -343,6 +390,12 @@ class MainWindowDataActions(WorkerManager):
         self.backfill_worker.progress.connect(self.on_backfill_progress)
         self.backfill_worker.finished_report.connect(self.on_backfill_finished)
         self.backfill_worker.start()
+
+        try:
+            self.backfill_dialog.cancel_button.clicked.disconnect()
+        except Exception:
+            pass
+        self.backfill_dialog.cancel_button.clicked.connect(self.cancel_backfill)
 
         logging.getLogger("EGS").info(
             "Arşiv taraması başlatıldı | kanal=%s | başlangıç=%s | bitiş=%s",
@@ -365,6 +418,7 @@ class MainWindowDataActions(WorkerManager):
                 f"Süre: {report['seconds']:.1f} sn"
             )
             self.backfill_dialog.start_button.setEnabled(True)
+            self.backfill_dialog.cancel_button.setEnabled(False)
 
         self.status_label.setText(
             f"Arşiv taraması tamamlandı | Gün: {report['days']} | Dosya: {report['files_found']} | "
@@ -390,9 +444,22 @@ class MainWindowDataActions(WorkerManager):
     def force_reload(self):
         self.load_news(force_refresh=True)
 
+    def cancel_backfill(self):
+        worker = getattr(self, "backfill_worker", None)
+        if not worker:
+            return
+
+        try:
+            worker.requestInterruption()
+            if self.backfill_dialog:
+                self.backfill_dialog.progress_label.setText("İptal ediliyor...")
+                self.backfill_dialog.cancel_button.setEnabled(False)
+        except Exception:
+            traceback.print_exc()
+
     def clear_cache(self):
         try:
-            clear_cache_for_channel(self.channel_name)
+            self._news_repository().clear_cache()
             QMessageBox.information(self, "Önbellek", "Kanal önbelleği temizlendi.")
         except Exception as exc:
             QMessageBox.critical(self, "Hata", f"Önbellek temizlenemedi:\n{exc}")

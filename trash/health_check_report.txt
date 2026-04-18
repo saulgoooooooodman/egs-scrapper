@@ -1,0 +1,278 @@
+EGS Scrapper Sağlık Kontrolü
+Tarih: 2026-04-18 20:01:39
+Klasör: C:\Users\Uluer\Desktop\EGS Scrapper
+
+=== DOSYA KONTROLÜ ===
+[OK] app.py
+[OK] main_window.py
+[OK] version_info.py
+[OK] health_check.py
+[OK] smoke_test.py
+[OK] help_content.md
+[OK] channel_rules.json
+[OK] core/__init__.py
+[OK] core/app_paths.py
+[OK] core/settings_manager.py
+[OK] core/logger_setup.py
+[OK] core/rules_store.py
+[OK] core/text_utils.py
+[OK] core/window_state_manager.py
+[OK] data/__init__.py
+[OK] data/database.py
+[OK] data/cache_manager.py
+[OK] data/database_search.py
+[OK] data/database_merge.py
+[OK] data/news_repository.py
+[OK] dictionaries/__init__.py
+[OK] dictionaries/dictionary_store.py
+[OK] dictionaries/spell_backend.py
+[OK] dictionaries/title_transform.py
+[OK] dictionaries/title_spellcheck.py
+[OK] models/__init__.py
+[OK] models/news_item.py
+[OK] models/news_table_model.py
+[OK] models/news_list_model.py
+[OK] watchers/__init__.py
+[OK] watchers/live_reload.py
+[OK] parsing/__init__.py
+[OK] parsing/scanner.py
+[OK] parsing/parser.py
+[OK] parsing/news_service.py
+[OK] parsing/news_worker.py
+[OK] parsing/worker_manager.py
+[OK] dialogs/__init__.py
+[OK] dialogs/startup_dialog.py
+[OK] dialogs/help_dialog.py
+[OK] dialogs/info_dialog.py
+[OK] dialogs/log_viewer_dialog.py
+[OK] dialogs/code_filter_wizard.py
+[OK] dialogs/rules_manager_dialog.py
+[OK] dialogs/archive_search_dialog.py
+[OK] dialogs/find_replace_dialog.py
+[OK] dialogs/title_dictionary_manager.py
+[OK] dialogs/dictionary_bundle_dialog.py
+[OK] dialogs/external_db_manager.py
+[OK] dialogs/db_merge_dialog.py
+[OK] ui/__init__.py
+[OK] ui/main_window_topbar.py
+[OK] ui/main_window_filters.py
+[OK] ui/main_window_preview.py
+[OK] ui/main_window_context_menus.py
+[OK] ui/main_window_menu_builder.py
+[OK] ui/main_window_ui.py
+[OK] actions/__init__.py
+[OK] actions/main_window_actions.py
+[OK] actions/main_window_edit_actions.py
+[OK] actions/main_window_view_actions.py
+[OK] actions/main_window_data_actions.py
+[OK] actions/main_window_state_hooks.py
+
+=== MODÜL / SEMBOL KONTROLÜ ===
+[OK] import main_window
+    [OK] MainWindow
+
+[OK] import smoke_test
+    [OK] run_smoke_test
+
+[OK] import version_info
+    [OK] APP_NAME
+    [OK] APP_VERSION
+    [OK] APP_RELEASE_DATE
+
+[OK] import core.app_paths
+    [OK] BASE_DIR
+    [OK] APP_DATA_DIR
+    [OK] DATA_DIR
+    [OK] DATABASES_DIR
+    [OK] LOG_DIR
+    [OK] RULES_FILE
+    [OK] HELP_FILE
+
+[OK] import core.settings_manager
+    [OK] load_settings
+    [OK] save_settings
+
+[OK] import core.logger_setup
+    [OK] setup_logging
+    [OK] install_exception_hook
+
+[OK] import core.rules_store
+    [OK] get_all_rules
+    [OK] save_all_rules
+    [OK] get_channel_rules
+
+[OK] import core.text_utils
+    [OK] normalize_search_text
+    [OK] upper_tr
+
+[OK] import core.window_state_manager
+    [OK] save_window_state
+    [OK] restore_window_state
+
+[OK] import data.database
+    [OK] init_db
+    [OK] upsert_news
+    [OK] delete_news_for_paths
+    [OK] check_database_integrity
+    [OK] vacuum_databases
+    [OK] analyze_databases
+    [OK] get_news_count_for_month
+    [OK] get_all_codes_from_db
+    [OK] search_archive
+    [OK] merge_external_database_into_channel
+
+[OK] import data.cache_manager
+    [OK] ensure_cache_table
+    [OK] is_cached
+    [OK] update_cache
+    [OK] clear_cache
+
+[OK] import data.database_search
+    [OK] search_archive
+
+[OK] import data.database_merge
+    [OK] merge_external_database_into_channel
+
+[OK] import data.news_repository
+    [OK] NewsRepository
+
+[OK] import dictionaries.dictionary_store
+    [OK] load_common_dictionary
+    [OK] save_common_dictionary
+    [OK] load_channel_dictionary
+    [OK] save_channel_dictionary
+    [OK] add_title_dictionary_entry
+
+[OK] import dictionaries.spell_backend
+    [OK] reload_spell_backend_status
+    [OK] get_spell_backend_status_text
+    [OK] has_spell_backend
+    [OK] apply_spell_suggestions
+
+[OK] import dictionaries.title_transform
+    [OK] apply_dictionary_pairs
+    [OK] apply_title_spellcheck
+
+[OK] import dictionaries.title_spellcheck
+    [OK] load_common_dictionary
+    [OK] save_common_dictionary
+    [OK] load_channel_dictionary
+    [OK] save_channel_dictionary
+    [OK] add_title_dictionary_entry
+    [OK] reload_spell_backend_status
+    [OK] get_spell_backend_status_text
+    [OK] apply_dictionary_pairs
+    [OK] apply_title_spellcheck
+
+[OK] import models.news_item
+    [OK] NewsItem
+
+[OK] import models.news_table_model
+    [OK] NewsTableModel
+
+[OK] import models.news_list_model
+    [OK] NewsListModel
+
+[OK] import watchers.live_reload
+    [OK] LiveReloadWatcher
+
+[OK] import parsing.scanner
+    [OK] build_date_path
+    [OK] scan_news_files
+
+[OK] import parsing.parser
+    [OK] ParsedNews
+    [OK] parse_egs_file
+
+[OK] import parsing.news_service
+    [OK] NewsIngestService
+
+[OK] import parsing.news_worker
+    [OK] NewsLoadWorker
+
+[OK] import parsing.worker_manager
+    [OK] WorkerManager
+
+[OK] import dialogs.startup_dialog
+    [OK] StartupDialog
+
+[OK] import dialogs.help_dialog
+    [OK] HelpDialog
+
+[OK] import dialogs.info_dialog
+    [OK] InfoDialog
+
+[OK] import dialogs.log_viewer_dialog
+    [OK] LogViewerDialog
+
+[OK] import dialogs.code_filter_wizard
+    [OK] CodeFilterWizardDialog
+
+[OK] import dialogs.rules_manager_dialog
+    [OK] RulesManagerDialog
+
+[OK] import dialogs.archive_search_dialog
+    [OK] ArchiveSearchDialog
+
+[OK] import dialogs.find_replace_dialog
+    [OK] FindReplaceDialog
+
+[OK] import dialogs.title_dictionary_manager
+    [OK] TitleDictionaryManagerDialog
+
+[OK] import dialogs.dictionary_bundle_dialog
+    [OK] DictionaryBundleDialog
+
+[OK] import dialogs.external_db_manager
+    [OK] ExternalDbManagerDialog
+
+[OK] import dialogs.db_merge_dialog
+    [OK] DbMergeDialog
+
+[OK] import ui.main_window_topbar
+    [OK] build_topbar
+
+[OK] import ui.main_window_filters
+    [OK] build_filter_bar
+
+[OK] import ui.main_window_preview
+    [OK] build_news_list_panel
+    [OK] build_preview_panel
+
+[OK] import ui.main_window_context_menus
+    [OK] show_header_context_menu
+    [OK] show_news_context_menu
+    [OK] open_source_file
+
+[OK] import ui.main_window_menu_builder
+    [OK] build_main_window_menu
+
+[OK] import ui.main_window_ui
+    [OK] build_main_window_ui
+    [OK] attach_ui_helpers
+
+[OK] import actions.main_window_actions
+    [OK] MainWindowActions
+
+[OK] import actions.main_window_edit_actions
+    [OK] MainWindowEditActions
+
+[OK] import actions.main_window_view_actions
+    [OK] MainWindowViewActions
+
+[OK] import actions.main_window_data_actions
+    [OK] MainWindowDataActions
+
+[OK] import actions.main_window_state_hooks
+    [OK] MainWindowStateHooks
+
+=== TEMEL ÇALIŞMA ZAMANI KONTROLÜ ===
+[OK] settings_manager.load_settings dict döndürüyor
+[OK] Yazım denetimi durumu: Başlık düzeltme: Yalnızca sözlük
+[OK] Veri klasörleri erişilebilir
+[OK] init_db çalıştı
+
+=== ÖZET ===
+Başarılı kontrol: 215
+Hatalı kontrol: 0
+SONUÇ: SAĞLIK KONTROLÜ BAŞARILI

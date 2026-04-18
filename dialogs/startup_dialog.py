@@ -82,12 +82,6 @@ class StartupDialog(QDialog):
         self.show_wizard_checkbox.setChecked(bool(settings.get("show_startup_wizard", True)))
         layout.addWidget(self.show_wizard_checkbox)
 
-        info = QLabel(
-            "İpucu: Gözat düğmesine bastığında varsayılan olarak C:\\DeeR klasörü açılır."
-        )
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
         buttons = QHBoxLayout()
         buttons.addStretch(1)
 

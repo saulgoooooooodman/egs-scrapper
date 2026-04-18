@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from core.atomic_io import atomic_write_json
 from core.app_paths import channel_dictionary_file, COMMON_DICTIONARY_FILE
 
 
@@ -84,10 +85,7 @@ def _normalize_dict(data: dict) -> dict[str, str]:
 
 def _load_json(path, fallback):
     if not path.exists():
-        path.write_text(
-            json.dumps(fallback, ensure_ascii=False, indent=2),
-            encoding="utf-8"
-        )
+        atomic_write_json(path, fallback, ensure_ascii=False, indent=2)
         return _normalize_dict(fallback)
 
     try:
@@ -105,9 +103,11 @@ def load_common_dictionary() -> dict[str, str]:
 
 
 def save_common_dictionary(data: dict[str, str]):
-    COMMON_DICTIONARY_FILE.write_text(
-        json.dumps(_normalize_dict(data), ensure_ascii=False, indent=2),
-        encoding="utf-8"
+    atomic_write_json(
+        COMMON_DICTIONARY_FILE,
+        _normalize_dict(data),
+        ensure_ascii=False,
+        indent=2,
     )
 
 
@@ -127,9 +127,11 @@ def load_channel_dictionary(channel_name: str) -> dict[str, str]:
 
 
 def save_channel_dictionary(channel_name: str, data: dict[str, str]):
-    channel_dictionary_file(channel_name).write_text(
-        json.dumps(_normalize_dict(data), ensure_ascii=False, indent=2),
-        encoding="utf-8"
+    atomic_write_json(
+        channel_dictionary_file(channel_name),
+        _normalize_dict(data),
+        ensure_ascii=False,
+        indent=2,
     )
 
 

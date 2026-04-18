@@ -31,16 +31,19 @@ class DbMergeDialog(QDialog):
             "Harici SQLite veritabanını seçip mevcut kanal veritabanına aktar."
         )
         info.setWordWrap(True)
+        info.setToolTip("Bu işlem seçtiğin dış veritabanındaki kayıtları aktif kanalın veritabanına kopyalar.")
         layout.addWidget(info)
 
         path_row = QHBoxLayout()
         self.path_input = QLineEdit()
         self.path_input.setReadOnly(True)
         self.path_input.setPlaceholderText("Harici veritabanı seçilmedi")
+        self.path_input.setToolTip("Birleştirilecek veritabanı dosyasının tam yolunu gösterir.")
         path_row.addWidget(self.path_input, 1)
 
         self.browse_btn = QPushButton("Gözat")
         self.browse_btn.clicked.connect(self.pick_db)
+        self.browse_btn.setToolTip("Birleştirmek istediğin dış SQLite veritabanını seç.")
         path_row.addWidget(self.browse_btn)
         layout.addLayout(path_row)
 
@@ -49,10 +52,12 @@ class DbMergeDialog(QDialog):
 
         self.merge_btn = QPushButton("Birleştir")
         self.merge_btn.clicked.connect(self.run_merge)
+        self.merge_btn.setToolTip("Seçili veritabanındaki kayıtları mevcut kanal veritabanına aktarır.")
         action_row.addWidget(self.merge_btn)
 
         self.cancel_btn = QPushButton("İptal")
         self.cancel_btn.clicked.connect(self.reject)
+        self.cancel_btn.setToolTip("İşlemi başlatmadan pencereyi kapatır.")
         action_row.addWidget(self.cancel_btn)
         layout.addLayout(action_row)
 

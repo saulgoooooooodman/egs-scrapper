@@ -10,6 +10,12 @@ class MainWindowStateHooks:
             pass
 
         try:
+            if hasattr(self, "save_settings_now"):
+                self.save_settings_now()
+        except Exception:
+            pass
+
+        try:
             if hasattr(self, "stop_all_workers"):
                 self.stop_all_workers()
         except Exception:

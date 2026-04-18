@@ -24,15 +24,18 @@ class LogViewerDialog(QDialog):
 
         self.text = QTextEdit()
         self.text.setReadOnly(True)
+        self.text.setToolTip("En güncel log dosyasının içeriğini burada okuyabilirsin.")
         layout.addWidget(self.text)
 
         buttons = QHBoxLayout()
         self.refresh_btn = QPushButton("Yenile")
         self.refresh_btn.clicked.connect(self.load_latest_log)
+        self.refresh_btn.setToolTip("En son log dosyasını yeniden okuyup ekrana tazeler.")
         buttons.addWidget(self.refresh_btn)
 
         self.open_folder_btn = QPushButton("Klasörü Aç")
         self.open_folder_btn.clicked.connect(self.open_folder)
+        self.open_folder_btn.setToolTip("Log dosyalarının bulunduğu klasörü açar.")
         buttons.addWidget(self.open_folder_btn)
 
         buttons.addStretch(1)

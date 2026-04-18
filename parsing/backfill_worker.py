@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timedelta
 
 from PySide6.QtCore import QDate, QThread, Signal
 
 from data.cache_manager import ensure_cache_table, update_cache
-from data.database import connect_db, init_db, upsert_news
-from dictionaries.title_spellcheck import apply_title_spellcheck
-from parsing.parser import parse_egs_file
+from data.news_repository import NewsRepository
+from parsing.news_service import NewsIngestService
 from parsing.scanner import scan_news_files
+from tools.error_reporter import record_parse_error
 
 
 class BackfillWorker(QThread):
@@ -22,6 +23,8 @@ class BackfillWorker(QThread):
         self.channel_name = channel_name
         self.start_date = start_date
         self.end_date = end_date
+        self.repository = NewsRepository(channel_name)
+        self.ingest_service = NewsIngestService(channel_name)
 
     def run(self):
         start_py = datetime(self.start_date.year(), self.start_date.month(), self.start_date.day())
@@ -53,7 +56,7 @@ class BackfillWorker(QThread):
             date_str = current.strftime("%d.%m.%Y")
             iso_date = current.strftime("%Y-%m-%d")
 
-            init_db(self.channel_name, iso_date)
+            self.repository.ensure_storage(iso_date)
 
             self.progress.emit(
                 int((day_index / total_days) * 100),
@@ -67,46 +70,41 @@ class BackfillWorker(QThread):
 
             files_found += len(files)
 
-            conn = connect_db(self.channel_name, iso_date)
+            conn = self.repository.connect(iso_date)
             ensure_cache_table(conn)
 
             try:
                 for file_path in files:
                     try:
-                        news = parse_egs_file(file_path, self.channel_name)
-                        corrected_title = apply_title_spellcheck(news.title, self.channel_name)
-
-                        final_text = news.final_text
-                        if corrected_title and corrected_title != news.title:
-                            lines = final_text.splitlines()
-                            if lines:
-                                lines[0] = corrected_title
-                                final_text = "\n".join(lines)
-
-                        stat = file_path.stat()
-                        item_data = {
-                            "path": str(file_path),
-                            "file_name": file_path.name,
-                            "title": news.title,
-                            "corrected_title": corrected_title,
-                            "news_code": news.news_code,
-                            "news_category": news.news_category,
-                            "format_code": news.format_code,
-                            "format_name": news.format_name,
-                            "summary": news.summary,
-                            "body": news.body,
-                            "kj_lines": news.kj_lines,
-                            "final_text": final_text,
-                            "editors": news.editors,
-                            "date_str": date_str,
-                            "iso_date": iso_date,
-                            "mtime": stat.st_mtime,
-                            "size": stat.st_size,
-                        }
-                        upsert_news(self.channel_name, item_data, conn=conn)
-                        update_cache(conn, item_data["path"], item_data["mtime"], item_data["size"])
+                        item = self.ingest_service.build_news_item(
+                            file_path,
+                            iso_date=iso_date,
+                            date_str=date_str,
+                        )
+                        self.repository.save_item(item, conn=conn)
+                        update_cache(conn, item.path, item.mtime, item.size)
                         indexed += 1
-                    except Exception:
+                    except Exception as exc:
+                        logging.getLogger("EGS.Backfill").exception(
+                            "Arsiv dosyasi islenemedi | kanal=%s | tarih=%s | dosya=%s",
+                            self.channel_name,
+                            iso_date,
+                            file_path,
+                        )
+                        try:
+                            record_parse_error(
+                                self.channel_name,
+                                str(file_path),
+                                exc,
+                                phase="backfill",
+                            )
+                        except Exception:
+                            logging.getLogger("EGS.Backfill").exception(
+                                "Parse hata raporu yazilamadi | kanal=%s | tarih=%s | dosya=%s",
+                                self.channel_name,
+                                iso_date,
+                                file_path,
+                            )
                         errors += 1
 
                 conn.commit()

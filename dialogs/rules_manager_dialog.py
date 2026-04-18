@@ -40,7 +40,9 @@ class RulesManagerDialog(QDialog):
         layout = QVBoxLayout(self)
 
         top_row = QHBoxLayout()
-        top_row.addWidget(QLabel("Kanal:"))
+        channel_label = QLabel("Kanal:")
+        channel_label.setToolTip("Düzenlemek istediğin kanalın haber kodu kurallarını seç.")
+        top_row.addWidget(channel_label)
 
         self.channel_combo = QComboBox()
         self.channel_combo.addItems(self._available_channels())
@@ -48,20 +50,25 @@ class RulesManagerDialog(QDialog):
         if idx >= 0:
             self.channel_combo.setCurrentIndex(idx)
         self.channel_combo.currentTextChanged.connect(self.reload_channel)
+        self.channel_combo.setToolTip("Seçilen kanalın haber kodu ve açıklama listesini yükler.")
         top_row.addWidget(self.channel_combo, 1)
 
         layout.addLayout(top_row)
 
         search_row = QHBoxLayout()
-        search_row.addWidget(QLabel("Filtre:"))
+        filter_label = QLabel("Filtre:")
+        filter_label.setToolTip("Kod veya açıklama içinde hızlı arama yapar.")
+        search_row.addWidget(filter_label)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Kod veya açıklama ara...")
         self.search_input.textChanged.connect(self.apply_filter)
+        self.search_input.setToolTip("Yazdıkça listedeki kuralları daraltır.")
         search_row.addWidget(self.search_input, 1)
 
         self.show_empty_checkbox = QCheckBox("Boş satırları göster")
         self.show_empty_checkbox.stateChanged.connect(self.apply_filter)
+        self.show_empty_checkbox.setToolTip("Henüz doldurulmamış boş kural satırlarını da görünür tutar.")
         search_row.addWidget(self.show_empty_checkbox)
 
         layout.addLayout(search_row)
@@ -74,30 +81,36 @@ class RulesManagerDialog(QDialog):
         self.table.setSelectionBehavior(self.table.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(self.table.SelectionMode.SingleSelection)
         self.table.setShowGrid(False)
+        self.table.setToolTip("Haber kodu ve kullanıcıya görünen açıklamasını düzenlediğin ana tablo.")
         layout.addWidget(self.table, 1)
 
         btn_row = QHBoxLayout()
 
         self.add_btn = QPushButton("Satır Ekle")
         self.add_btn.clicked.connect(self.add_row)
+        self.add_btn.setToolTip("Yeni bir haber kodu kuralı satırı ekler.")
         btn_row.addWidget(self.add_btn)
 
         self.delete_btn = QPushButton("Seçili Satırı Sil")
         self.delete_btn.clicked.connect(self.delete_selected_row)
+        self.delete_btn.setToolTip("Seçili kural satırını tablodan kaldırır.")
         btn_row.addWidget(self.delete_btn)
 
         self.sort_btn = QPushButton("Koda Göre Sırala")
         self.sort_btn.clicked.connect(self.sort_rows)
+        self.sort_btn.setToolTip("Tablodaki kuralları haber koduna göre alfabetik sıralar.")
         btn_row.addWidget(self.sort_btn)
 
         btn_row.addStretch(1)
 
         self.save_btn = QPushButton("Kaydet")
         self.save_btn.clicked.connect(self.save_rules)
+        self.save_btn.setToolTip("Tablodaki kural değişikliklerini kalıcı olarak kaydeder.")
         btn_row.addWidget(self.save_btn)
 
         self.close_btn = QPushButton("Kapat")
         self.close_btn.clicked.connect(self.accept)
+        self.close_btn.setToolTip("Kaydetmeden çıkarsan yalnızca kaydedilmemiş değişiklikler kaybolur.")
         btn_row.addWidget(self.close_btn)
 
         layout.addLayout(btn_row)

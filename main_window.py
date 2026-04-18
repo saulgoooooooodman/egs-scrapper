@@ -3,7 +3,8 @@ from PySide6.QtWidgets import QMainWindow, QDialog
 
 from version_info import APP_NAME, APP_VERSION
 from dialogs.startup_dialog import StartupDialog
-from core.settings_manager import load_settings, save_settings
+from core.settings_manager import load_settings
+from core.settings_sync import SettingsSync
 from core.window_state_manager import restore_window_state
 
 from ui.main_window_ui import build_main_window_ui, attach_ui_helpers
@@ -18,6 +19,7 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
         super().__init__()
 
         self.settings = load_settings()
+        self.settings_sync = SettingsSync(self)
 
         remember_me = bool(self.settings.get("remember_me", False))
         show_startup_wizard = bool(self.settings.get("show_startup_wizard", True))
@@ -36,9 +38,7 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
 
             selected = startup.result_data
             self.settings.update(selected)
-
-            if selected.get("remember_me", False):
-                save_settings(self.settings)
+            self.save_settings_now()
         else:
             selected = {
                 "user_name": self.settings.get("user_name", ""),
@@ -85,6 +85,15 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
         self.load_news()
         self.show()
 
+        self.search_scope_combo.currentIndexChanged.connect(lambda *_: self.save_main_ui_settings())
+        self.search_regex_checkbox.toggled.connect(lambda *_: self.save_main_ui_settings())
+
+    def schedule_settings_save(self, immediate: bool = False):
+        self.settings_sync.schedule(immediate=immediate)
+
+    def save_settings_now(self):
+        self.settings_sync.flush()
+
     def _apply_live_watch_setting(self):
         enabled = bool(self.settings.get("live_watch_enabled", False))
         if hasattr(self, "action_live_watch"):
@@ -114,7 +123,7 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
     def toggle_live_watch(self):
         enabled = self.action_live_watch.isChecked()
         self.settings["live_watch_enabled"] = enabled
-        save_settings(self.settings)
+        self.schedule_settings_save()
 
         if enabled:
             self._refresh_live_watch_paths()

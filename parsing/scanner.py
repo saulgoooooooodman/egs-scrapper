@@ -9,6 +9,7 @@ from pathlib import Path
 _SUFFIX_RE = re.compile(r"_(?:[A-Z0-9]+)$", re.IGNORECASE)
 _SEPARATOR_RE = re.compile(r"^[\+\-\=\_\.\sA-Z0-9ÇĞİÖŞÜ]+$")
 _ROOT_ALIASES: dict[str, Path] = {}
+_SUPPORTED_FILE_EXTENSIONS = {"", ".txt", ".text", ".egs", ".xml"}
 
 
 def _date_parts(date_str: str) -> tuple[str, str, str, str]:
@@ -188,6 +189,10 @@ def _is_separator_name(name: str) -> bool:
     return False
 
 
+def _has_supported_extension(path: Path) -> bool:
+    return path.suffix.lower() in _SUPPORTED_FILE_EXTENSIONS
+
+
 def _is_hidden_by_keyword(name: str, channel_name: str) -> tuple[bool, str]:
     upper = name.upper()
 
@@ -230,6 +235,14 @@ def scan_news_files(root_folder: str, date_str: str, channel_name: str) -> list[
             continue
 
         if _is_copluk_path(path):
+            continue
+
+        if not _has_supported_extension(path):
+            logger.info(
+                "Ayıklandı (desteklenmeyen uzantı) | kanal=%s | dosya=%s",
+                channel_name,
+                path.name,
+            )
             continue
 
         raw_name = path.stem

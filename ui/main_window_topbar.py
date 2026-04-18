@@ -79,12 +79,12 @@ def build_topbar(self, main_layout):
     top_layout.addWidget(self.profile_avatar_label)
 
     self.profile_button = QPushButton(self.user_name or "Profil")
-    self.profile_button.setToolTip("Profili değiştir")
+    self.profile_button.setToolTip("Kullanıcı, kanal ve kök klasör ayarlarını değiştirmek için profil ekranını açar.")
     self.profile_button.clicked.connect(self.change_profile)
     top_layout.addWidget(self.profile_button)
 
-    self.profile_label = QLabel(f"{self.channel_name} | {self.root_folder}")
-    self.profile_label.setToolTip("Geçerli kanal ve kök klasör")
+    self.profile_label = QLabel(self.channel_name)
+    self.profile_label.setToolTip("Şu an açık olan kanal.")
     self.profile_label.setWordWrap(False)
     top_layout.addWidget(self.profile_label, 1)
 
@@ -92,20 +92,20 @@ def build_topbar(self, main_layout):
 
     self.prev_day_btn = QPushButton("◀")
     self.prev_day_btn.setFixedWidth(32)
-    self.prev_day_btn.setToolTip("Önceki güne git")
+    self.prev_day_btn.setToolTip("Bir gün geri gider ve o tarihin haberlerini yükler.")
     self.prev_day_btn.clicked.connect(self.go_previous_day)
     top_layout.addWidget(self.prev_day_btn)
 
     self.date_edit = QDateEdit()
     self.date_edit.setCalendarPopup(True)
     self.date_edit.setDisplayFormat("dd.MM.yyyy")
-    self.date_edit.setToolTip("Haber tarihini seç")
+    self.date_edit.setToolTip("Yüklenecek haber tarihini seç. Tarih değişince liste otomatik yenilenir.")
     self.date_edit.dateChanged.connect(self.on_date_changed)
     top_layout.addWidget(self.date_edit)
 
     self.next_day_btn = QPushButton("▶")
     self.next_day_btn.setFixedWidth(32)
-    self.next_day_btn.setToolTip("Sonraki güne git")
+    self.next_day_btn.setToolTip("Bir gün ileri gider ve o tarihin haberlerini yükler.")
     self.next_day_btn.clicked.connect(self.go_next_day)
     top_layout.addWidget(self.next_day_btn)
 
