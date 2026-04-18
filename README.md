@@ -1,176 +1,280 @@
 # EGS Scrapper
 
-EGS Scrapper, televizyon haber odası sistemi (EGS) ile medya arşiv sistemi (Cinegy) arasında manuel veri girişini ortadan kaldırmak için geliştirilmiş profesyonel bir otomasyon aracıdır.
+EGS Scrapper, EGS haber dosyalarini tarayip editorlerin hizlica kopyalayabilecegi, duzenleyebilecegi ve arsivde arayabilecegi temiz haber metni ureten masaustu bir PySide6 uygulamasidir.
 
-Haber başlıklarını, KJ (alt bant) metinlerini ve metadata’yı parse eder, temizler ve Cinegy uyumlu formatta hazır hale getirir.
+Bu repo, uygulamanin kaynak kodunu icerir. Yerel ayarlar, veritabanlari, loglar ve kullaniciya ozel calisma verileri bilerek repoya dahil edilmez.
 
----
+## Ozellikler
 
-## 🚀 Özellikler
+- Gunluk EGS klasorunu tarama
+- Haber kodu ve baslik parse etme
+- Baslik sozlugu ve kanal kurallari ile duzeltme
+- Arsiv veritabanlarinda tarih araligina gore arama
+- Editor filtresi ile arsiv arama
+- Salt okunur arsiv sonuc listesi
+- Veritabani bakimi
+- Cok kullanicili profil secimi
+- EXE derleme destegi
 
-- 📂 EGS (.egs) dosyalarını otomatik tarama
-- 🧠 Gelişmiş parser (başlık + KJ ayrıştırma)
-- 🧹 Başlık normalize sistemi
-- 🔤 Türkçe karakter düzeltme (sözlük + spellcheck altyapısı)
-- 📋 Çift tıklama ile kopyalama
-- 🔎 Gelişmiş filtreleme ve arama
-- 🧩 Kanal bazlı kurallar
-- ⚡ Cache sistemi (hızlı yükleme)
-- 🧵 Worker thread (UI donmaz)
-- 👁️ Canlı izleme (Live Watch)
-- 🗃️ Arşiv arama
-- 🧪 Health Check + Smoke Test
+## Teknoloji
 
----
+- Python
+- PySide6
+- SQLite
+- PyInstaller
 
-## 🧠 Sistem Nasıl Çalışır?
+## Klasor Yapisi
 
-1. EGS klasörü taranır  
-2. Haber dosyaları parse edilir  
-3. Başlık ve KJ metinleri ayrıştırılır  
-4. Kanal kuralları uygulanır  
-5. Sonuç Cinegy uyumlu metne dönüştürülür  
-
----
-
-## 📁 Proje Yapısı
-egs-scrapper/
-│
-├── actions/ # UI davranışları
-├── core/ # çekirdek modüller
-├── data/ # veritabanı ve cache
-├── dialogs/ # pencere bileşenleri
-├── dictionaries/ # sözlük ve spellcheck
-├── models/ # veri modelleri
-├── parsing/ # EGS parser motoru
-├── ui/ # arayüz bileşenleri
-├── watchers/ # canlı izleme
-│
-├── channel_dictionaries/ # kanal sözlükleri
-├── channel_logos/ # kanal logoları
-│
-├── app.py
-├── main_window.py
-├── version_info.py
-├── health_check.py
-├── smoke_test.py
-│
-└── channel_rules.json
-
----
-
-## 📺 Kanal Kuralları
-
-### A NEWS
-- Bölge kodları korunur (WME, WEU vb.)
-- Format: `(PKG)` → VTR
-- Uluslararası haber yapısı
-
----
-
-### A HABER
-- Türkçe karakter düzeltme zorunludur
-- Örnek:
-  - `ERDOGAN → ERDOĞAN`
-  - `VALILIGI → VALİLİĞİ`
-
----
-
-### A SPOR
-- Program isimleri korunur (`90+1`, `SPOR GÜNDEMİ`)
-- Minimal normalize uygulanır
-
----
-
-### A PARA
-- Tüm başlıkların sonuna `-APR` eklenir
-- Ekonomi içerikleri önceliklidir
-
----
-
-## ⚙️ Parser Kuralları
-
-### Başlık Normalize
-
-FRANCE MEDIA(PKG)31 → FRANCE MEDIA (PKG) 31
-(OD) → ÖZEL HABER -
-
-
-### Ignore Kuralları
-
-- `COPLUK` klasörü yok sayılır  
-- `+` ile başlayan başlıklar filtrelenir  
-
----
-
-### KJ Parsing
-
-EGS içinden alınan KJ verisi:
-
-;;DOUBLE
-;;NAME
-;;LOCATION
-
-
-➡️ Sıralama:
-
-1. Başlık  
-2. Açıklama  
-3. Kişi  
-4. Lokasyon  
-
----
-
-## 🧾 Kopyalama Davranışı
-
-- 🖱️ Çift tıklama → metni kopyalar  
-- ⌨️ Ctrl + C → çoklu kopyalama  
-- 🏷️ Başlığa çift tıklama → tüm metni kopyalar  
-
----
-
-## ⚡ Performans
-
-- Cache sistemi (mtime + size)
-- Worker thread
-- Lazy loading
-- Live file watcher
-
----
-
-## 🧪 Test ve Kontrol
-
-### Health Check
-```bash
-python health_check.py
+```text
+EGS Scrapper/
+|- actions/
+|- core/
+|- data/
+|- dialogs/
+|- dictionaries/
+|- models/
+|- parsing/
+|- tools/
+|- ui/
+|- watchers/
+|- app.py
+|- main_window.py
+|- build_exe.bat
+|- requirements.txt
+|- EGS_Scrapper.spec
+\- channel_rules.json
 ```
-### Smoke Test
-```bash
-python smoke_test.py
+
+## Kurulum
+
+### 1. Repoyu klonlayin
+
+```powershell
+git clone https://github.com/saulgoooooooodman/egs-scrapper.git
+cd egs-scrapper
 ```
-▶️ Çalıştırma
+
+### 2. Sanal ortam olusturun
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+```
+
+### 3. Bagimliliklari kurun
+
+```powershell
+pip install -r requirements.txt
+```
+
+### 4. Uygulamayi calistirin
+
+```powershell
 python app.py
-📦 Versiyon
+```
 
-v1.8.2 - Stable
+## Gelistirme Ortami
 
-🛠️ Geliştirme
+Projeyi kaynak kod uzerinden gelistirin. EXE yalnizca dagitim icindir.
 
-⚠️ **Bilinen Kısıtlar**
-Büyük harfli başlıklarda spellcheck sınırlı çalışır
-Bazı EGS varyasyonları manuel düzeltme gerektirebilir
+Onerilen gunluk akis:
 
-📌 **Roadmap**
-✅ Gelişmiş parser
-⏳ Spellcheck iyileştirme
-⏳ Installer sistemi
-⏳ Otomatik güncelleme
-⏳ Test senaryoları genişletme
-👨‍💻 Katkı
+```powershell
+git pull origin main
+python app.py
+git add .
+git commit -m "Degisiklik aciklamasi"
+git push origin main
+```
 
-Bu proje aktif geliştirme altındadır.
-Geri bildirimler değerlidir.
+## Baska Bilgisayarda Gelistirmeye Devam Etme
 
-📄 **Lisans**
+Bu proje GitHub uzerinden farkli bilgisayarlarda rahatca surdurulebilir.
 
-Internal / Private kullanım amaçlı geliştirilmiştir.
+Onerilen akis:
+
+1. Bu bilgisayarda degisiklik yapin
+2. Commit edin
+3. GitHub'a push edin
+4. Diger bilgisayarda repoyu clone edin veya pull alin
+5. Calismaya orada devam edin
+
+Ornek:
+
+```powershell
+git pull origin main
+```
+
+## Kullanici Verileri Nerede Tutulur
+
+Uygulama yazilabilir verileri varsayilan olarak kullanici profilinde tutar:
+
+```text
+%LOCALAPPDATA%\EGS Scrapper
+```
+
+Burada tipik olarak sunlar bulunur:
+
+- `settings.json`
+- `databases/`
+- `logs/`
+- `error_reports/`
+- `channel_dictionaries/`
+- `common_dictionary.json`
+
+Bu veriler kisiye ve makineye ozeldir, bu yuzden repoya dahil edilmez.
+
+## Profil Sistemi
+
+Uygulama acilisinda profil secimi ekrani gelebilir.
+
+Bu ekran sunlar icin gereklidir:
+
+- Ayni bilgisayari birden fazla editor kullaniyorsa
+- Farkli kanallarda calisiliyorsa
+- Farkli kok klasorlerle gecis yapilacaksa
+
+Profil ekraninda secilen temel bilgiler:
+
+- Kullanici adi
+- Kanal
+- Kok klasor
+- Profil logosu
+
+## Kok Klasor Mantigi
+
+Uygulama tarih klasorunu degil, kanalin ana haber kokunu bekler.
+
+Dogru ornekler:
+
+- `C:\DeeR\ANEWS\HABER`
+- `C:\DeeR\Haber\HABER`
+- `C:\DeeR\ASPOR\HABER`
+
+Yanlis ornekler:
+
+- `C:\DeeR\ANEWS\HABER\2026\04182026.egs`
+- `C:\DeeR\ANEWS\HABER\HABER\2026\04182026.egs`
+
+## Arsiv Arama
+
+Arsiv arama ekrani:
+
+- tarih araliginda calisir
+- birden fazla arama satiri destekler
+- editor filtresi destekler
+- sonuclari salt okunur gosterir
+- sag tik menusunde hizli islem sunar
+
+Sonuc listesinde gorulen baslica alanlar:
+
+- Tarih
+- Kod
+- Baslik
+- Editor
+- Kaynak
+- Onizleme
+
+## Veritabani Bakimi
+
+Uygulamada veritabani bakim araclari bulunur:
+
+- `Veritabani Sagligini Kontrol Et`
+- `Veritabanini Toparla`
+- `Arama Istatistiklerini Yenile`
+
+Bu islemler, yerel veritabanlarinda duzen ve arama performansi acisindan yardimci olur.
+
+## EXE Derleme
+
+Windows icin EXE uretmek icin:
+
+```powershell
+build_exe.bat
+```
+
+Derleme ciktisi:
+
+```text
+dist\EGS Scrapper
+```
+
+Not:
+
+- `build_exe.bat`, dagitima temiz profil baslangici saglayan bir `settings.json` birakir.
+- Bu sayede yeni kurulumda EXE ilk acilista bos profil akisiyla baslar.
+
+## Repo Temizlik Politikasi
+
+Bu repo bilerek asagidakileri izlemez:
+
+- `settings.json`
+- `databases/`
+- `logs/`
+- `error_reports/`
+- `trash/`
+- `build/`
+- `dist/`
+- `release/`
+- test raporlari
+- gecici Python cache dosyalari
+
+Bu amacla `.gitignore` dosyasi eklenmistir.
+
+## Faydali Komutlar
+
+### Durumu kontrol et
+
+```powershell
+git status
+```
+
+### Son degisiklikleri cek
+
+```powershell
+git pull origin main
+```
+
+### Degisiklikleri gonder
+
+```powershell
+git add .
+git commit -m "Proje guncellemesi"
+git push origin main
+```
+
+## Sorun Giderme
+
+### Uygulama aciliyor ama haber gelmiyor
+
+- Kok klasor yanlis olabilir
+- Kanal yanlis olabilir
+- Secilen tarih klasorde bulunmuyor olabilir
+
+### Arsiv arama sonuc vermiyor
+
+- Tarih araligini kontrol edin
+- Kod filtresini temizleyin
+- Editor filtresini bosaltip tekrar deneyin
+- `Tam Eslesme` aciksa kapatip deneyin
+
+### Baslik yanlis parse oldu
+
+- Kanal kurallarini kontrol edin
+- Sonra `Zorla Yenile` kullanin
+
+## Katki ve Senkronizasyon
+
+Bu repo tek makinede degil, birden fazla makinede gelistirmeye uygun hale getirilmistir.
+
+En guvenli senkronizasyon duzeni:
+
+1. Calismaya baslamadan once `git pull`
+2. Is bitince `git add`, `git commit`, `git push`
+3. Diger bilgisayarda tekrar `git pull`
+
+## Uzak Repo
+
+GitHub adresi:
+
+[https://github.com/saulgoooooooodman/egs-scrapper](https://github.com/saulgoooooooodman/egs-scrapper)

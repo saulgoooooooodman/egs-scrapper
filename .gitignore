@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+
+build/
+dist/
+release/
+
+logs/
+error_reports/
+databases/
+trash/
+
+settings.json
+health_check_report.txt
+smoke_test_report.txt
+EGS Scrapper.zip
+
+channel_dictionaries/smoke_test_dictionary.json
