@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
 from datetime import datetime, timedelta
 
@@ -60,12 +61,18 @@ class BackfillWorker(QThread):
 
             self.progress.emit(
                 int((day_index / total_days) * 100),
-                f"Taranıyor: {date_str} ({day_index}/{total_days})",
+                f"Taraniyor: {date_str} ({day_index}/{total_days})",
             )
 
             try:
                 files = scan_news_files(self.root_folder, date_str, self.channel_name)
-            except Exception:
+            except (OSError, ValueError, RuntimeError):
+                logging.getLogger("EGS.Backfill").exception(
+                    "Arsiv gunu taranamadi | kanal=%s | tarih=%s",
+                    self.channel_name,
+                    iso_date,
+                )
+                errors += 1
                 files = []
 
             files_found += len(files)
@@ -75,6 +82,8 @@ class BackfillWorker(QThread):
 
             try:
                 for file_path in files:
+                    if self.isInterruptionRequested():
+                        break
                     try:
                         item = self.ingest_service.build_news_item(
                             file_path,
@@ -84,7 +93,7 @@ class BackfillWorker(QThread):
                         self.repository.save_item(item, conn=conn)
                         update_cache(conn, item.path, item.mtime, item.size)
                         indexed += 1
-                    except Exception as exc:
+                    except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
                         logging.getLogger("EGS.Backfill").exception(
                             "Arsiv dosyasi islenemedi | kanal=%s | tarih=%s | dosya=%s",
                             self.channel_name,
@@ -98,7 +107,7 @@ class BackfillWorker(QThread):
                                 exc,
                                 phase="backfill",
                             )
-                        except Exception:
+                        except (OSError, RuntimeError):
                             logging.getLogger("EGS.Backfill").exception(
                                 "Parse hata raporu yazilamadi | kanal=%s | tarih=%s | dosya=%s",
                                 self.channel_name,

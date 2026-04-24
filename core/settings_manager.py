@@ -22,8 +22,16 @@ DEFAULT_SETTINGS = {
     "main_duplicate_mode": "off",
     "show_previous_day_news": True,
     "remember_window_geometry": False,
+    "remember_last_date": False,
+    "last_selected_date": "",
     "always_on_top": False,
     "live_watch_enabled": False,
+    "title_spellcheck_mode": "auto",
+    "auto_title_spellcheck": True,
+    "suppress_empty_folder_warning": False,
+    "main_splitter_sizes": [450, 980],
+    "news_code_styles": {},
+    "old_news_row_style": {},
     "window_geometry": None,
     "external_databases": [],
 }
@@ -40,8 +48,11 @@ def load_settings() -> dict:
 
         merged = dict(DEFAULT_SETTINGS)
         merged.update(data)
+        if "title_spellcheck_mode" not in merged:
+            merged["title_spellcheck_mode"] = "auto" if bool(merged.get("auto_title_spellcheck", True)) else "manual"
+        merged["auto_title_spellcheck"] = merged.get("title_spellcheck_mode") == "auto"
         return merged
-    except Exception:
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return dict(DEFAULT_SETTINGS)
 
 

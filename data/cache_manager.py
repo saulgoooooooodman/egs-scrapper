@@ -49,3 +49,22 @@ def update_cache(conn, path, mtime, size):
 def clear_cache(conn):
     cur = conn.cursor()
     cur.execute("DELETE FROM cache")
+
+
+def delete_cache_paths(conn, paths) -> int:
+    normalized_paths = []
+    for raw_path in paths or []:
+        normalized = normalize_cache_path(raw_path)
+        if normalized:
+            normalized_paths.append(normalized)
+
+    if not normalized_paths:
+        return 0
+
+    cur = conn.cursor()
+    placeholders = ",".join("?" for _ in normalized_paths)
+    cur.execute(
+        f"DELETE FROM cache WHERE path COLLATE NOCASE IN ({placeholders})",
+        normalized_paths,
+    )
+    return max(cur.rowcount, 0)

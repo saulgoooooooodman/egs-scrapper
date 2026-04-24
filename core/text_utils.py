@@ -17,6 +17,18 @@ def normalize_search_text(text: str) -> str:
     return text
 
 
+_TR_SORT_ALPHABET = "0123456789ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZQWX"
+_TR_SORT_INDEX = {char: index for index, char in enumerate(_TR_SORT_ALPHABET)}
+
+
+def turkish_sort_key(text: str):
+    normalized = upper_tr(str(text or ""))
+    result = []
+    for char in normalized:
+        result.append(_TR_SORT_INDEX.get(char, len(_TR_SORT_ALPHABET) + ord(char)))
+    return tuple(result)
+
+
 def upper_tr(text: str) -> str:
     mapping = str.maketrans({
         "i": "İ",

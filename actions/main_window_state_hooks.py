@@ -6,19 +6,19 @@ class MainWindowStateHooks:
         try:
             if self.settings.get("remember_window_geometry", False):
                 save_window_state(self)
-        except Exception:
+        except (AttributeError, RuntimeError, OSError):
             pass
 
         try:
             if hasattr(self, "save_settings_now"):
                 self.save_settings_now()
-        except Exception:
+        except RuntimeError:
             pass
 
         try:
             if hasattr(self, "stop_all_workers"):
                 self.stop_all_workers()
-        except Exception:
+        except RuntimeError:
             pass
 
         super().closeEvent(event)

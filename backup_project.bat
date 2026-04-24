@@ -16,7 +16,7 @@ if not exist "backups" mkdir "backups"
 set ZIPFILE=backups\EGS_Scrapper_Backup_%TS%.zip
 
 powershell -NoProfile -Command ^
-"Compress-Archive -Path * -DestinationPath '%ZIPFILE%' -Force"
+"$items = Get-ChildItem -Force ^| Where-Object { $_.Name -notin @('.git', 'backups', 'build', 'dist', 'release', '.venv', 'venv', 'env', '__pycache__') }; if (-not $items) { throw 'Yedeklenecek dosya bulunamadi.' }; Compress-Archive -Path $items.FullName -DestinationPath '%ZIPFILE%' -Force"
 
 if errorlevel 1 (
     echo Yedekleme basarisiz oldu.

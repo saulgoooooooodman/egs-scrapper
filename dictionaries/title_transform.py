@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import re
 
-from dictionaries.dictionary_store import (
-    load_common_dictionary,
-    load_channel_dictionary,
-)
-from dictionaries.spell_backend import (
-    has_spell_backend,
-    apply_spell_suggestions,
-)
+from core.settings_manager import load_settings
+from dictionaries.dictionary_store import load_channel_dictionary
+from dictionaries.spell_backend import apply_spell_suggestions, has_spell_backend
 
 
 def apply_dictionary_pairs(text: str, replacements: dict[str, str]) -> str:
@@ -22,54 +17,57 @@ def apply_dictionary_pairs(text: str, replacements: dict[str, str]) -> str:
     return result
 
 
-def _cleanup_title_artifacts(title: str, channel_name: str) -> str:
+def _cleanup_title_artifacts(title: str) -> str:
     result = title or ""
 
-    # APS ifadesi başlıktan atılsın
     result = re.sub(r"\bAPS\b", "", result, flags=re.IGNORECASE)
-
-    # ANALİZ-- gibi çift tireleri tekilleştir
     result = re.sub(r"\bANALİZ--+\b", "ANALİZ-", result, flags=re.IGNORECASE)
     result = re.sub(r"\bANALIZ--+\b", "ANALİZ-", result, flags=re.IGNORECASE)
-
-    # Fazla tire/boşluk temizliği
     result = re.sub(r"\s*-\s*-\s*", "-", result)
-    result = re.sub(r"\s{2,}", " ", result).strip()
-
-    # Özel dosya kalıntısı
     result = result.replace("(OD)", "").replace(" (OD)", "").strip()
-
-    # Format parantezi öncesi boşluk
     result = re.sub(r"([A-ZÇĞİÖŞÜ0-9])\((PKG|VTR|SOT|VO|LIVE)\)", r"\1 (\2)", result)
-
-    # Format sonrası sayı ayrımı: (PKG)31 -> (PKG) 31
     result = re.sub(r"(\((?:PKG|VTR|SOT|VO|LIVE)\))(\d+)", r"\1 \2", result)
-
-    # A PARA için -APR ekle
-    if channel_name == "A PARA":
-        if result and not result.endswith("-APR"):
-            result = f"{result} -APR"
-
     return re.sub(r"\s{2,}", " ", result).strip()
 
 
-def apply_title_spellcheck(title: str, channel_name: str) -> str:
+def _should_apply_spell_backend(channel_name: str, respect_auto_setting: bool) -> bool:
+    if not has_spell_backend():
+        return False
+
+    normalized_channel = str(channel_name or "").strip().upper()
+    if normalized_channel == "A NEWS":
+        return False
+
+    settings = load_settings()
+    mode = str(
+        settings.get(
+            "title_spellcheck_mode",
+            "auto" if bool(settings.get("auto_title_spellcheck", True)) else "manual",
+        )
+        or "manual"
+    ).lower()
+
+    if not respect_auto_setting:
+        return mode in {"auto", "manual"}
+
+    return mode == "auto"
+
+
+def apply_title_spellcheck(
+    title: str,
+    channel_name: str,
+    news_code: str = "",
+    *,
+    respect_auto_setting: bool = True,
+) -> str:
     if not title.strip():
         return title
 
-    result = title
+    result = apply_dictionary_pairs(title, load_channel_dictionary(channel_name))
 
-    if channel_name != "A NEWS":
-        # A NEWS ortak sözlükten ayrıldı; yalnızca kendi kanal sözlüğünü kullanır.
-        result = apply_dictionary_pairs(result, load_common_dictionary())
-
-    # Sonra kanala özel sözlük
-    result = apply_dictionary_pairs(result, load_channel_dictionary(channel_name))
-
-    # Sonra backend önerisi
-    if has_spell_backend():
+    if _should_apply_spell_backend(channel_name, respect_auto_setting):
         result = apply_spell_suggestions(result)
 
-    result = _cleanup_title_artifacts(result, channel_name)
+    result = _cleanup_title_artifacts(result)
     result = re.sub(r"\s{2,}", " ", result).strip()
     return result

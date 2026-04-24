@@ -1,24 +1,30 @@
 import logging
 import sqlite3
 import traceback
+from pathlib import Path
 
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QCheckBox, QDialog, QMessageBox
 
 from dialogs.backfill_dialog import BackfillDialog
 from dialogs.startup_dialog import StartupDialog
 from parsing.backfill_worker import BackfillWorker
-from parsing.scanner import scan_news_files
+from parsing.scanner import build_date_path, scan_news_files
+from parsing.parser import _extract_news_code_and_title
 from data.database import (
     connect_db,
     delete_news_for_paths,
     init_db,
+    normalize_db_path,
 )
-from data.cache_manager import ensure_cache_table, is_cached, update_cache, clear_cache
+from data.cache_manager import ensure_cache_table, is_cached, update_cache, clear_cache, delete_cache_paths
 from data.news_repository import NewsRepository
 from models.news_item import NewsItem
 from parsing.news_worker import NewsLoadWorker
 from parsing.worker_manager import WorkerManager
-from dictionaries.title_spellcheck import get_spell_backend_status_text
+from parsing.news_service import NewsIngestService
+
+
+logger = logging.getLogger("EGS.MainWindowData")
 
 
 class MainWindowDataActions(WorkerManager):
@@ -49,6 +55,26 @@ class MainWindowDataActions(WorkerManager):
     def _normalize_news_code(self, code) -> str:
         return str(code or "").strip().upper()
 
+    def _refresh_list_titles(self, items):
+        refreshed = []
+        for item in items or []:
+            current = item if isinstance(item, dict) else item.to_dict()
+            file_name = str(current.get("file_name", "") or "").strip()
+            title = str(current.get("title", "") or "").strip()
+            list_title = str(current.get("list_title", "") or "").strip()
+
+            try:
+                _, extracted_title = _extract_news_code_and_title(file_name, self.channel_name)
+            except Exception:
+                extracted_title = ""
+
+            candidate = extracted_title or title
+            if candidate and list_title != candidate:
+                current["list_title"] = candidate
+
+            refreshed.append(current)
+        return refreshed
+
     def _hide_previous_day_news_enabled(self) -> bool:
         if "hide_previous_day_news" in self.settings:
             return bool(self.settings.get("hide_previous_day_news", False))
@@ -59,7 +85,65 @@ class MainWindowDataActions(WorkerManager):
             "scanned_count": int(scanned_count or 0),
             "to_process_count": int(to_process_count or 0),
             "cached_count": int(cached_count or 0),
+            "stale_deleted_count": 0,
+            "stale_cache_deleted_count": 0,
         }
+
+    def _warn_empty_source_folder(self, target_dir: Path, iso_date: str):
+        if bool(self.settings.get("suppress_empty_folder_warning", False)):
+            return
+
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Kaynak Klasör Boş")
+        dialog.setText(
+            "Kaynak klasör boş görünüyor.\n"
+            "Güvenlik için o güne ait veritabanı kayıtları korunacak."
+        )
+        dialog.setInformativeText(
+            f"Tarih: {iso_date}\n"
+            f"Klasör: {target_dir}\n\n"
+            "Bu boşluk geçiciyse veritabanı silinmez. Klasör tekrar dolunca liste geri gelir."
+        )
+        checkbox = QCheckBox("Bir daha gösterme")
+        dialog.setCheckBox(checkbox)
+        dialog.exec()
+        if checkbox.isChecked():
+            self.settings["suppress_empty_folder_warning"] = True
+            self.schedule_settings_save()
+
+    def _sync_removed_files(self, repository: NewsRepository, iso_date: str, scanned_files, target_exists: bool) -> tuple[int, int]:
+        if not target_exists or not scanned_files:
+            return 0, 0
+
+        live_paths = {
+            normalize_db_path(str(path))
+            for path in scanned_files or []
+            if normalize_db_path(str(path))
+        }
+
+        stale_paths = []
+        for item in repository.fetch_by_date(iso_date):
+            item_path = normalize_db_path(item.path)
+            if item_path and item_path not in live_paths:
+                stale_paths.append(item_path)
+
+        if not stale_paths:
+            return 0, 0
+
+        conn = repository.connect(iso_date)
+        try:
+            deleted_news = delete_news_for_paths(
+                self.channel_name,
+                stale_paths,
+                iso_date=iso_date,
+                conn=conn,
+            )
+            deleted_cache = delete_cache_paths(conn, stale_paths)
+            conn.commit()
+            return deleted_news, deleted_cache
+        finally:
+            conn.close()
 
     def _should_hide_previous_day_item(self, item: dict) -> bool:
         if not self._hide_previous_day_news_enabled():
@@ -83,7 +167,7 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             conn.close()
-        except Exception:
+        except sqlite3.Error:
             pass
         finally:
             self.conn = None
@@ -119,15 +203,20 @@ class MainWindowDataActions(WorkerManager):
 
                 update_channel_logo(self)
                 update_profile_avatar(self)
-            except Exception:
+            except (ImportError, AttributeError, RuntimeError):
                 traceback.print_exc()
 
         if hasattr(self, "_refresh_live_watch_paths"):
             self._refresh_live_watch_paths()
+        if hasattr(self, "sync_symbol_prefixed_visibility_action"):
+            self.sync_symbol_prefixed_visibility_action()
 
         self.load_news(force_refresh=True)
 
     def on_date_changed(self, date):
+        if bool(self.settings.get("remember_last_date", False)):
+            self.settings["last_selected_date"] = date.toString("yyyy-MM-dd")
+            self.schedule_settings_save()
         if hasattr(self, "_refresh_live_watch_paths"):
             self._refresh_live_watch_paths()
         self.load_news()
@@ -152,7 +241,7 @@ class MainWindowDataActions(WorkerManager):
         try:
             if hasattr(self, "stop_all_workers"):
                 self.stop_all_workers()
-        except Exception:
+        except RuntimeError:
             pass
 
         self._close_active_connection()
@@ -164,7 +253,7 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             self.news_model.set_items([])
-        except Exception:
+        except RuntimeError:
             pass
 
         self.preview_title.setText("Başlık:")
@@ -176,14 +265,45 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             files = scan_news_files(self.root_folder, date_str, self.channel_name)
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             QMessageBox.critical(self, "Hata", f"Tarama sırasında hata oluştu:\n{e}")
             return
+
+        target_dir = build_date_path(self.root_folder, date_str)
+        try:
+            target_exists = target_dir.exists()
+        except OSError:
+            target_exists = False
+
+        folder_is_empty = target_exists and not files
+
+        if folder_is_empty:
+            stale_deleted_count, stale_cache_deleted_count = 0, 0
+            self._warn_empty_source_folder(target_dir, iso_date)
+        else:
+            stale_deleted_count, stale_cache_deleted_count = self._sync_removed_files(
+                repository,
+                iso_date,
+                files,
+                target_exists,
+            )
+        self._current_load_metrics["stale_deleted_count"] = stale_deleted_count
+        self._current_load_metrics["stale_cache_deleted_count"] = stale_cache_deleted_count
 
         if not files:
             self.count_label.setText("Haber sayısı: 0")
             db_count = repository.count_for_month(iso_date)
-            self.status_label.setText(f"Hiç haber bulunamadı | DB: {db_count}")
+            if folder_is_empty:
+                self.status_label.setText(
+                    f"Kaynak klasör boş | DB korundu: {db_count} | "
+                    f"Tarih: {iso_date}"
+                )
+                self.progress_bar.setVisible(False)
+                return
+            self.status_label.setText(
+                f"Hiç haber bulunamadı | DB: {db_count} | "
+                f"Temizlenen kayıt: {stale_deleted_count}"
+            )
             self.progress_bar.setVisible(False)
             return
 
@@ -200,7 +320,7 @@ class MainWindowDataActions(WorkerManager):
                     filtered_files.append(f)
                 else:
                     cached_count += 1
-            except Exception:
+            except (OSError, sqlite3.Error):
                 filtered_files.append(f)
 
         self.progress_bar.setVisible(True)
@@ -211,6 +331,8 @@ class MainWindowDataActions(WorkerManager):
             to_process_count=len(filtered_files),
             cached_count=cached_count,
         )
+        self._current_load_metrics["stale_deleted_count"] = stale_deleted_count
+        self._current_load_metrics["stale_cache_deleted_count"] = stale_cache_deleted_count
 
         self.status_label.setText(
             f"Yükleniyor... Taranan: {len(files)} | İşlenecek: {len(filtered_files)} | Önbellekten: {cached_count}"
@@ -219,11 +341,11 @@ class MainWindowDataActions(WorkerManager):
         self._close_active_connection()
 
         if not filtered_files:
-            self.news_items = repository.fetch_by_date(iso_date)
+            self.news_items = self._refresh_list_titles(repository.fetch_by_date(iso_date))
             self.progress_bar.setVisible(False)
             try:
                 self.apply_filters()
-            except Exception:
+            except RuntimeError:
                 traceback.print_exc()
 
             total_db = repository.count_for_month(iso_date)
@@ -232,12 +354,13 @@ class MainWindowDataActions(WorkerManager):
                 f"{len(self.news_items)} haber | DB: {total_db} | "
                 f"Taranan: {metrics.get('scanned_count', 0)} | "
                 f"Önbellekten: {metrics.get('cached_count', 0)} | "
-                f"{get_spell_backend_status_text()}"
+                f"Temizlenen: {metrics.get('stale_deleted_count', 0)} | "
+                f"{self._filter_summary_text()}"
             )
 
             try:
                 self._close_active_connection()
-            except Exception:
+            except sqlite3.Error:
                 pass
             return
 
@@ -261,7 +384,7 @@ class MainWindowDataActions(WorkerManager):
                 f"Taranan: {metrics.get('scanned_count', 0)} | "
                 f"Önbellekten: {metrics.get('cached_count', 0)}"
             )
-        except Exception:
+        except RuntimeError:
             traceback.print_exc()
 
     def on_worker_error(self, message):
@@ -270,7 +393,7 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             self.progress_bar.setVisible(False)
-        except Exception:
+        except RuntimeError:
             pass
         self._close_active_connection()
         QMessageBox.critical(self, "Hata", message)
@@ -297,8 +420,8 @@ class MainWindowDataActions(WorkerManager):
                             iso_date=iso_date,
                             conn=conn,
                         )
-                    except Exception:
-                        traceback.print_exc()
+                    except (sqlite3.Error, ValueError, TypeError):
+                        logger.exception("Zorla yenileme öncesi eski kayıtlar silinemedi | kanal=%s | tarih=%s", channel_name, iso_date)
 
                 for item in results:
                     news_item = NewsItem.from_dict(item)
@@ -308,8 +431,8 @@ class MainWindowDataActions(WorkerManager):
                     try:
                         repository.save_item(news_item, conn=conn)
                         indexed_count += 1
-                    except Exception:
-                        traceback.print_exc()
+                    except (sqlite3.Error, OSError, ValueError):
+                        logger.exception("Haber veritabanına yazılamadı | kanal=%s | tarih=%s | yol=%s", channel_name, iso_date, news_item.path)
 
                     try:
                         update_cache(
@@ -318,39 +441,39 @@ class MainWindowDataActions(WorkerManager):
                             news_item.mtime,
                             news_item.size
                         )
-                    except Exception:
-                        traceback.print_exc()
+                    except sqlite3.Error:
+                        logger.exception("Önbellek kaydı güncellenemedi | kanal=%s | tarih=%s | yol=%s", channel_name, iso_date, news_item.path)
 
                 try:
                     conn.commit()
-                except Exception:
-                    traceback.print_exc()
+                except sqlite3.Error:
+                    logger.exception("Veritabanı commit başarısız | kanal=%s | tarih=%s", channel_name, iso_date)
             finally:
                 try:
                     conn.close()
-                except Exception:
-                    traceback.print_exc()
+                except sqlite3.Error:
+                    logger.exception("Veritabanı bağlantısı kapatılamadı | kanal=%s | tarih=%s", channel_name, iso_date)
 
             try:
-                self.news_items = repository.fetch_by_date(iso_date)
-            except Exception:
-                traceback.print_exc()
+                self.news_items = self._refresh_list_titles(repository.fetch_by_date(iso_date))
+            except sqlite3.Error:
+                logger.exception("Veritabanından liste başlıkları okunamadı | kanal=%s | tarih=%s", channel_name, iso_date)
                 self.news_items = []
 
             try:
                 self.progress_bar.setVisible(False)
-            except Exception:
-                traceback.print_exc()
+            except RuntimeError:
+                logger.exception("İlerleme çubuğu gizlenemedi")
 
             try:
                 self.apply_filters()
-            except Exception:
-                traceback.print_exc()
+            except RuntimeError:
+                logger.exception("Filtreler uygulanamadı")
 
             try:
                 total_db = repository.count_for_month(iso_date)
-            except Exception:
-                traceback.print_exc()
+            except sqlite3.Error:
+                logger.exception("Aylık veritabanı sayısı okunamadı | kanal=%s | tarih=%s", channel_name, iso_date)
                 total_db = 0
 
             self.status_label.setText(
@@ -358,12 +481,13 @@ class MainWindowDataActions(WorkerManager):
                 f"Taranan: {self._current_load_metrics.get('scanned_count', 0)} | "
                 f"İşlenen: {self._current_load_metrics.get('to_process_count', 0)} | "
                 f"Önbellekten: {self._current_load_metrics.get('cached_count', 0)} | "
+                f"Temizlenen: {self._current_load_metrics.get('stale_deleted_count', 0)} | "
                 f"Silinen: {deleted_count} | Yazılan: {indexed_count} | "
-                f"{get_spell_backend_status_text()}"
+                f"{self._filter_summary_text()}"
             )
 
-        except Exception:
-            traceback.print_exc()
+        except (sqlite3.Error, OSError, RuntimeError, ValueError, TypeError):
+            logger.exception("Yükleme işçisi sonuçları ana ekrana işlenemedi")
 
     def start_backfill(self):
         if not self.backfill_dialog:
@@ -393,7 +517,7 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             self.backfill_dialog.cancel_button.clicked.disconnect()
-        except Exception:
+        except (RuntimeError, TypeError):
             pass
         self.backfill_dialog.cancel_button.clicked.connect(self.cancel_backfill)
 
@@ -438,7 +562,7 @@ class MainWindowDataActions(WorkerManager):
 
         try:
             self.load_news(force_refresh=False)
-        except Exception:
+        except (sqlite3.Error, OSError, RuntimeError, ValueError):
             traceback.print_exc()
 
     def force_reload(self):
@@ -454,15 +578,143 @@ class MainWindowDataActions(WorkerManager):
             if self.backfill_dialog:
                 self.backfill_dialog.progress_label.setText("İptal ediliyor...")
                 self.backfill_dialog.cancel_button.setEnabled(False)
-        except Exception:
+        except RuntimeError:
             traceback.print_exc()
 
     def clear_cache(self):
         try:
             self._news_repository().clear_cache()
-            QMessageBox.information(self, "Önbellek", "Kanal önbelleği temizlendi.")
-        except Exception as exc:
+            QMessageBox.information(
+                self,
+                "Önbellek",
+                "Kanal önbelleği temizlendi.\n\n"
+                "Bu işlem haber metinlerini silmez. Yalnızca uygulamanın "
+                "dosyayı yeniden okumadan önce baktığı hızlı kontrol kayıtlarını temizler.",
+            )
+        except (sqlite3.Error, OSError, RuntimeError) as exc:
             QMessageBox.critical(self, "Hata", f"Önbellek temizlenemedi:\n{exc}")
+
+    def _push_code_filter_state(self):
+        history = list(getattr(self, "_code_filter_history", []))
+        history.append((sorted(self.selected_codes), bool(self.code_filter_hide_mode)))
+        self._code_filter_history = history[-20:]
+
+    def _apply_code_filter_state(self):
+        self.apply_filters()
+        self.save_main_ui_settings()
+
+    def hide_news_code(self, code: str | None = None):
+        target_code = self._normalize_news_code(code)
+        if not target_code:
+            self.status_label.setText("Gizlenecek haber kodu bulunamadı")
+            return
+        self._push_code_filter_state()
+        self.selected_codes.add(target_code)
+        self.code_filter_hide_mode = True
+        self._apply_code_filter_state()
+        self.status_label.setText(f"Haber kodu gizlendi: {target_code}")
+
+    def show_only_news_code(self, code: str | None = None):
+        target_code = self._normalize_news_code(code)
+        if not target_code:
+            self.status_label.setText("Filtrelenecek haber kodu bulunamadı")
+            return
+        self._push_code_filter_state()
+        self.selected_codes = {target_code}
+        self.code_filter_hide_mode = False
+        self._apply_code_filter_state()
+        self.status_label.setText(f"Yalnızca bu haber kodu gösteriliyor: {target_code}")
+
+    def undo_code_filter(self):
+        history = list(getattr(self, "_code_filter_history", []))
+        if not history:
+            self.status_label.setText("Geri alınacak filtre bulunamadı")
+            return
+        previous_codes, previous_hide_mode = history.pop()
+        self._code_filter_history = history
+        self.selected_codes = set(previous_codes)
+        self.code_filter_hide_mode = bool(previous_hide_mode)
+        self._apply_code_filter_state()
+        self.status_label.setText("Son haber kodu filtresi geri alındı")
+
+    def clear_code_filters(self):
+        if not self.selected_codes and not self.code_filter_hide_mode:
+            self.status_label.setText("Temizlenecek haber kodu filtresi yok")
+            return
+        self._push_code_filter_state()
+        self.selected_codes = set()
+        self.code_filter_hide_mode = False
+        self._apply_code_filter_state()
+        self.status_label.setText("Haber kodu filtreleri temizlendi")
+
+    def refresh_selected_news_from_source(self):
+        targets = self._selected_news_items() if hasattr(self, "_selected_news_items") else []
+        if not targets:
+            self.status_label.setText("Önce bir haber seç")
+            return
+
+        repository = self._news_repository()
+        iso_date = self.date_edit.date().toString("yyyy-MM-dd")
+        date_str = self.date_edit.date().toString("dd.MM.yyyy")
+        service = NewsIngestService(self.channel_name)
+        updated_count = 0
+        skipped = []
+        conn = repository.connect(iso_date)
+        ensure_cache_table(conn)
+
+        try:
+            for item in targets:
+                path = Path(str(item.get("path", "") or "").strip())
+                if not path.exists():
+                    skipped.append(path.name or str(path))
+                    continue
+
+                delete_news_for_paths(self.channel_name, [str(path)], iso_date=iso_date, conn=conn)
+                news_item = service.build_news_item(path, iso_date=iso_date, date_str=date_str)
+                repository.save_item(news_item, conn=conn)
+                update_cache(conn, str(path), news_item.mtime, news_item.size)
+                updated_count += 1
+            conn.commit()
+        finally:
+            conn.close()
+
+        self.load_news(force_refresh=False)
+        if skipped:
+            self.status_label.setText(
+                f"Güncellenen haber: {updated_count} | Atlanan dosya: {len(skipped)}"
+            )
+        else:
+            self.status_label.setText(f"Kaynaktan yeniden okunan haber: {updated_count}")
+
+    def navigate_news_by_prefix(self, prefix: str):
+        from core.text_utils import normalize_search_text
+
+        normalized_prefix = normalize_search_text(prefix)
+        if not normalized_prefix:
+            return
+
+        for row, item in enumerate(self.news_model.all_items()):
+            title = self.news_model.display_title_for_item(item)
+            if normalize_search_text(title).startswith(normalized_prefix):
+                index = self.news_model.index(row, 2)
+                self.news_view.setCurrentIndex(index)
+                self.news_view.selectRow(row)
+                self.news_view.scrollTo(index, self.news_view.ScrollHint.PositionAtCenter)
+                self.status_label.setText(f"Hızlı seçim: {title}")
+                return
+
+    def _set_filter_status_text(self, message: str = ""):
+        total_count = len(self.news_items or [])
+        visible_count = len(self.filtered_items or [])
+        hidden_count = max(total_count - visible_count, 0)
+        details = f"Gösterilen: {visible_count} | Gizlenen: {hidden_count}"
+        self.status_label.setText(f"{message} | {details}" if message else details)
+
+    def _filter_summary_text(self) -> str:
+        total_count = len(self.news_items or [])
+        visible_count = len(self.filtered_items or [])
+        hidden_count = max(total_count - visible_count, 0)
+        return f"Gösterilen: {visible_count} | Gizlenen: {hidden_count} | Toplam: {total_count}"
 
     def apply_filters(self):
         import re
@@ -482,7 +734,7 @@ class MainWindowDataActions(WorkerManager):
                 self.filtered_items = []
                 self.fill_tree([])
                 self.count_label.setText("Haber sayısı: 0")
-                self.status_label.setText("Geçersiz regex ifadesi")
+                self._set_filter_status_text("Geçersiz regex ifadesi")
                 return
 
         filtered = []
@@ -507,7 +759,10 @@ class MainWindowDataActions(WorkerManager):
                         continue
 
             title_raw = item.get("title", "")
+            corrected_title = item.get("corrected_title", "")
+            item["_is_previous_day"] = self._should_hide_previous_day_item(item)
             title_text = normalize_search_text(title_raw)
+            corrected_text = normalize_search_text(corrected_title)
             content_raw = " ".join([
                 item.get("summary", ""),
                 item.get("body", ""),
@@ -522,19 +777,19 @@ class MainWindowDataActions(WorkerManager):
             if raw_query:
                 if use_regex and regex:
                     if scope == "Başlık":
-                        matched = bool(regex.search(title_raw))
+                        matched = bool(regex.search(corrected_title or title_raw))
                     elif scope == "Haber Metni":
                         matched = bool(regex.search(content_raw))
                     else:
-                        raw_content = f"{title_raw} {content_raw}"
+                        raw_content = f"{corrected_title or title_raw} {content_raw}"
                         matched = bool(regex.search(raw_content))
                 else:
                     if scope == "Başlık":
-                        matched = query in title_text
+                        matched = query in (corrected_text or title_text)
                     elif scope == "Haber Metni":
                         matched = query in content_text
                     else:
-                        matched = query in (title_text + " " + content_text)
+                        matched = query in ((corrected_text or title_text) + " " + content_text)
 
             if matched:
                 filtered.append(item)
@@ -566,18 +821,19 @@ class MainWindowDataActions(WorkerManager):
         self.filtered_items = filtered
         self.fill_tree(self.filtered_items)
         self.count_label.setText(f"Haber sayısı: {len(self.filtered_items)}")
+        self._set_filter_status_text()
 
     def fill_tree(self, items):
         try:
             self.news_model.set_items(items)
-        except Exception:
+        except RuntimeError:
             traceback.print_exc()
             return
 
         if items:
             try:
                 self.news_view.selectRow(0)
-            except Exception:
+            except RuntimeError:
                 traceback.print_exc()
         else:
             self.preview_title.setText("Başlık:")

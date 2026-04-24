@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import re
-from functools import lru_cache
 from pathlib import Path
+
+from core.rules_store import get_channel_scan_options
+from parsing.parser import _get_valid_news_codes, _match_exact_news_code, _match_numbered_news_code
 
 
 _SUFFIX_RE = re.compile(r"_(?:[A-Z0-9]+)$", re.IGNORECASE)
@@ -45,13 +47,18 @@ def _candidate_paths(root: Path, year: str, folder_name: str) -> list[Path]:
         candidates.append(root)
 
     containers = []
+    root_name = root.name.casefold()
     for container in (
-        root / "HABER",
-        root / "Haber",
-        root / "haber",
-        root / "Haber" / "HABER",
-        root / "haber" / "haber",
         root,
+        *(()
+          if root_name in {"haber"}
+          else (
+              root / "HABER",
+              root / "Haber",
+              root / "haber",
+              root / "Haber" / "HABER",
+              root / "haber" / "haber",
+          )),
     ):
         key = str(container).casefold()
         if key in {str(item).casefold() for item in containers}:
@@ -91,7 +98,7 @@ def _discover_root_alias(root: Path) -> Path | None:
                 for path in base.rglob(root.name)
                 if path.is_dir()
             ]
-        except Exception:
+        except OSError:
             continue
 
         if matches:
@@ -105,7 +112,6 @@ def _discover_root_alias(root: Path) -> Path | None:
     return discovered[0]
 
 
-@lru_cache(maxsize=256)
 def build_date_path(root_folder: str, date_str: str) -> Path:
     logger = logging.getLogger("EGS.Scanner")
     _, _, year, folder_name = _date_parts(date_str)
@@ -134,7 +140,7 @@ def build_date_path(root_folder: str, date_str: str) -> Path:
                 for path in base.rglob(folder_name)
                 if path.is_dir() and path.parent.name == year
             ]
-        except Exception:
+        except OSError:
             continue
 
         if matches:
@@ -155,9 +161,31 @@ def build_date_path(root_folder: str, date_str: str) -> Path:
     return candidates[0]
 
 
-def _is_hidden_by_prefix(name: str) -> bool:
+def _matches_explicit_symbol_code(name: str, channel_name: str) -> bool:
+    display_name = str(name or "").strip()
+    if not display_name or display_name[0] not in "+!#*":
+        return False
+
+    for valid_code in _get_valid_news_codes(channel_name):
+        if not valid_code or valid_code[0] not in "+!#*":
+            continue
+        if _match_exact_news_code(display_name, valid_code) is not None:
+            return True
+        if _match_numbered_news_code(display_name, valid_code) is not None:
+            return True
+    return False
+
+
+def _is_hidden_by_prefix(name: str, channel_name: str) -> bool:
     stripped = name.strip()
-    return stripped.startswith("+")
+    if not stripped.startswith(("+", "!", "#", "*")):
+        return False
+
+    if _matches_explicit_symbol_code(stripped, channel_name):
+        return False
+
+    options = get_channel_scan_options(channel_name)
+    return bool(options.get("hide_symbol_prefixed_titles", True))
 
 
 def _is_hidden_by_symbol(name: str) -> bool:
@@ -211,6 +239,11 @@ def _strip_suffix(name: str) -> str:
 
 def scan_news_files(root_folder: str, date_str: str, channel_name: str) -> list[Path]:
     logger = logging.getLogger("EGS.Scanner")
+    skipped_unsupported = 0
+    skipped_symbol = 0
+    skipped_prefix = 0
+    skipped_separator = 0
+    skipped_keyword = 0
 
     target_dir = build_date_path(root_folder, date_str)
     logger.info(
@@ -238,7 +271,8 @@ def scan_news_files(root_folder: str, date_str: str, channel_name: str) -> list[
             continue
 
         if not _has_supported_extension(path):
-            logger.info(
+            skipped_unsupported += 1
+            logger.debug(
                 "Ayıklandı (desteklenmeyen uzantı) | kanal=%s | dosya=%s",
                 channel_name,
                 path.name,
@@ -249,24 +283,28 @@ def scan_news_files(root_folder: str, date_str: str, channel_name: str) -> list[
         display_name = _strip_suffix(raw_name)
 
         if _is_hidden_by_symbol(display_name):
-            logger.info(
+            skipped_symbol += 1
+            logger.debug(
                 "Gizlendi (sembol ile başlıyor) | kanal=%s | dosya=%s",
                 channel_name,
                 raw_name,
             )
             continue
 
-        if _is_hidden_by_prefix(display_name):
-            logger.info("Ayıklandı (separator) | %s", raw_name)
+        if _is_hidden_by_prefix(display_name, channel_name):
+            skipped_prefix += 1
+            logger.debug("Ayıklandı (+ ile başlıyor) | %s", raw_name)
             continue
 
         if _is_separator_name(display_name):
-            logger.info("Ayıklandı (separator) | %s", raw_name)
+            skipped_separator += 1
+            logger.debug("Ayıklandı (separator) | %s", raw_name)
             continue
 
         hidden_by_keyword, reason = _is_hidden_by_keyword(display_name, channel_name)
         if hidden_by_keyword:
-            logger.info(
+            skipped_keyword += 1
+            logger.debug(
                 "Gizlendi (kelime eşleşmesi=%s) | kanal=%s | dosya=%s",
                 reason,
                 channel_name,
@@ -277,9 +315,14 @@ def scan_news_files(root_folder: str, date_str: str, channel_name: str) -> list[
         results.append(path)
 
     logger.info(
-        "Tarama tamamlandı | kanal=%s | tarih=%s | bulunan=%s",
+        "Tarama tamamlandı | kanal=%s | tarih=%s | bulunan=%s | ayiklanan_uzanti=%s | gizlenen_sembol=%s | ayiklanan_on_ek=%s | ayiklanan_separator=%s | gizlenen_kelime=%s",
         channel_name,
         date_str,
         len(results),
+        skipped_unsupported,
+        skipped_symbol,
+        skipped_prefix,
+        skipped_separator,
+        skipped_keyword,
     )
     return results

@@ -10,6 +10,7 @@ class NewsItem:
     file_name: str = ""
     title: str = ""
     corrected_title: str = ""
+    list_title: str = ""
     news_code: str = ""
     news_category: str = ""
     format_code: str = ""
@@ -29,6 +30,7 @@ class NewsItem:
         "file_name",
         "title",
         "corrected_title",
+        "list_title",
         "news_code",
         "news_category",
         "format_code",
@@ -61,6 +63,7 @@ class NewsItem:
             "file_name": getattr(parsed_news, "file_name", ""),
             "title": getattr(parsed_news, "title", ""),
             "corrected_title": getattr(parsed_news, "corrected_title", ""),
+            "list_title": getattr(parsed_news, "list_title", ""),
             "news_code": getattr(parsed_news, "news_code", ""),
             "news_category": getattr(parsed_news, "news_category", ""),
             "format_code": getattr(parsed_news, "format_code", ""),
@@ -80,6 +83,7 @@ class NewsItem:
             "file_name": self.file_name,
             "title": self.title,
             "corrected_title": self.corrected_title,
+            "list_title": self.list_title,
             "news_code": self.news_code,
             "news_category": self.news_category,
             "format_code": self.format_code,

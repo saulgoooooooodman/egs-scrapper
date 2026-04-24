@@ -40,6 +40,7 @@ def build_main_window_ui(self):
     main_layout.addWidget(self.progress_bar)
 
     splitter = QSplitter()
+    self.main_splitter = splitter
     splitter.setChildrenCollapsible(False)
     splitter.setToolTip("Sol tarafta haber listesi, sağ tarafta seçili haberin önizlemesi bulunur.")
 
@@ -62,7 +63,16 @@ def build_main_window_ui(self):
 
     splitter.addWidget(left_widget)
     splitter.addWidget(right_widget)
-    splitter.setSizes([450, 980])
+    splitter.setStretchFactor(0, 0)
+    splitter.setStretchFactor(1, 1)
+    splitter.setOpaqueResize(False)
+
+    saved_sizes = self.settings.get("main_splitter_sizes", [450, 980])
+    if isinstance(saved_sizes, list) and len(saved_sizes) == 2:
+        splitter.setSizes([max(int(saved_sizes[0]), 220), max(int(saved_sizes[1]), 320)])
+    else:
+        splitter.setSizes([450, 980])
+    splitter.splitterMoved.connect(self.on_main_splitter_moved)
 
     main_layout.addWidget(splitter, 1)
 

@@ -6,9 +6,12 @@ from PySide6.QtCore import QItemSelectionModel
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.title_dictionary_manager import TitleDictionaryManagerDialog
+from core.title_rules import get_body_prefix_text
 from dictionaries.dictionary_store import add_title_dictionary_entry
+from dictionaries.title_spellcheck import apply_title_spellcheck
 from data.news_repository import NewsRepository
 from core.text_utils import transform_case_for_channel
+from parsing.news_service import build_story_headline
 
 
 class MainWindowEditActions:
@@ -17,6 +20,175 @@ class MainWindowEditActions:
 
     def _transform_case(self, text: str, mode: str) -> str:
         return transform_case_for_channel(text, mode, self.channel_name)
+
+    def _selected_news_items(self) -> list[dict]:
+        rows = [index.row() for index in self.news_view.selectionModel().selectedRows()]
+        if rows:
+            return self.news_model.items_at_rows(rows)
+
+        current_index = self.news_view.currentIndex()
+        if current_index.isValid():
+            current_item = self.news_model.item_at(current_index.row())
+            if current_item:
+                return [current_item]
+        return []
+
+    def _rewrite_item_title_blocks(
+        self,
+        item: dict,
+        new_corrected_title: str,
+        *,
+        existing_corrected_title: str | None = None,
+        existing_original_title: str | None = None,
+    ) -> str:
+        original_title = str(item.get("title", "") or "").strip()
+        previous_original_title = str(
+            existing_original_title
+            if existing_original_title is not None
+            else original_title
+            or ""
+        ).strip()
+        current_corrected = str(
+            existing_corrected_title
+            if existing_corrected_title is not None
+            else item.get("corrected_title", "")
+            or ""
+        ).strip()
+        body_prefix = get_body_prefix_text(
+            self.channel_name,
+            item.get("news_code", ""),
+            original_title,
+        )
+
+        blocks = [block.strip() for block in str(item.get("final_text", "") or "").split("\n\n") if block.strip()]
+        current_lead_title = current_corrected if current_corrected and current_corrected != previous_original_title else previous_original_title
+        current_lead_block = build_story_headline(
+            current_lead_title,
+            body_prefix=body_prefix,
+            news_code=item.get("news_code", ""),
+        ).strip()
+        new_lead_title = new_corrected_title if new_corrected_title and new_corrected_title != original_title else original_title
+        new_lead_block = build_story_headline(
+            new_lead_title,
+            body_prefix=body_prefix,
+            news_code=item.get("news_code", ""),
+        ).strip()
+
+        insert_index = 0
+        if current_lead_block and blocks and blocks[0] == current_lead_block:
+            blocks.pop(0)
+        elif body_prefix and blocks and blocks[0] == body_prefix:
+            blocks.pop(0)
+            if current_corrected and current_corrected != previous_original_title:
+                if blocks and blocks[0] == current_corrected:
+                    blocks.pop(0)
+                if blocks and blocks[0] == previous_original_title:
+                    blocks.pop(0)
+            elif blocks and blocks[0] == previous_original_title:
+                blocks.pop(0)
+        elif current_corrected and current_corrected != previous_original_title:
+            if blocks and blocks[0] == current_corrected:
+                blocks.pop(0)
+            if blocks and blocks[0] == previous_original_title:
+                blocks.pop(0)
+        elif blocks and blocks[0] == previous_original_title:
+            blocks.pop(0)
+
+        new_blocks = []
+        if new_lead_block:
+            new_blocks.append(new_lead_block)
+        if new_corrected_title and new_corrected_title != original_title and original_title:
+            new_blocks.append(original_title)
+
+        for offset, block in enumerate(new_blocks):
+            blocks.insert(insert_index + offset, block)
+
+        return "\n\n".join(blocks).strip()
+
+    def _refresh_after_item_update(self, target_path: str):
+        self.apply_filters()
+        normalized_target = str(target_path or "").strip()
+        if not normalized_target:
+            return
+
+        for row, item in enumerate(self.news_model.all_items()):
+            if str(item.get("path", "") or "").strip() != normalized_target:
+                continue
+            index = self.news_model.index(row, 2)
+            self.news_view.setCurrentIndex(index)
+            self.news_view.selectRow(row)
+            self.news_view.scrollTo(index, self.news_view.ScrollHint.PositionAtCenter)
+            break
+
+    def apply_spellcheck_to_selected_news(self):
+        targets = self._selected_news_items()
+        if not targets:
+            self.status_label.setText("Önce bir haber seç")
+            return
+
+        changed = 0
+        last_path = ""
+        repository = self._news_repository()
+
+        for item in targets:
+            original_title = str(item.get("title", "") or "").strip()
+            corrected_title = apply_title_spellcheck(
+                original_title,
+                self.channel_name,
+                item.get("news_code", ""),
+                respect_auto_setting=False,
+            ).strip()
+            if corrected_title == original_title:
+                corrected_title = ""
+
+            if corrected_title == str(item.get("corrected_title", "") or "").strip():
+                continue
+
+            previous_corrected = str(item.get("corrected_title", "") or "").strip()
+            item["final_text"] = self._rewrite_item_title_blocks(
+                item,
+                corrected_title,
+                existing_corrected_title=previous_corrected,
+            )
+            item["corrected_title"] = corrected_title
+            item["list_title"] = corrected_title or original_title
+            repository.save_item(item)
+            changed += 1
+            last_path = item.get("path", "")
+
+        if changed:
+            self._refresh_after_item_update(last_path)
+        self.status_label.setText(f"Yazımı düzeltilen haber: {changed}")
+
+    def revert_spellcheck_for_selected_news(self):
+        targets = self._selected_news_items()
+        if not targets:
+            self.status_label.setText("Önce bir haber seç")
+            return
+
+        changed = 0
+        last_path = ""
+        repository = self._news_repository()
+
+        for item in targets:
+            previous_corrected = str(item.get("corrected_title", "") or "").strip()
+            if not previous_corrected:
+                continue
+
+            item["final_text"] = self._rewrite_item_title_blocks(
+                item,
+                "",
+                existing_corrected_title=previous_corrected,
+            )
+            item["corrected_title"] = ""
+            item["list_title"] = str(item.get("title", "") or "").strip()
+            repository.save_item(item)
+            changed += 1
+            last_path = item.get("path", "")
+
+        if changed:
+            self._refresh_after_item_update(last_path)
+        self.status_label.setText(f"Yazımı geri alınan haber: {changed}")
 
     def open_find_replace_dialog(self):
         selected_rows = self.news_view.selectionModel().selectedRows()
@@ -77,15 +249,17 @@ class MainWindowEditActions:
         if updated == original:
             return False
 
+        previous_corrected = str(item.get("corrected_title", "") or "").strip()
+        previous_original = original
         item["title"] = updated
+        item["list_title"] = updated
+        item["final_text"] = self._rewrite_item_title_blocks(
+            item,
+            "",
+            existing_corrected_title=previous_corrected,
+            existing_original_title=previous_original,
+        )
         item["corrected_title"] = ""
-
-        final_text = item.get("final_text", "") or ""
-        if final_text:
-            lines = final_text.splitlines()
-            if lines:
-                lines[0] = updated
-                item["final_text"] = "\n".join(lines)
 
         return True
 
@@ -173,7 +347,7 @@ class MainWindowEditActions:
         try:
             QApplication.clipboard().setText(text)
             return True
-        except Exception:
+        except RuntimeError:
             return False
 
     def copy_from_preview(self):
@@ -271,10 +445,16 @@ class MainWindowEditActions:
     def undo_text(self):
         if self.preview_text.hasFocus():
             self.preview_text.undo()
+            return
+        if hasattr(self, "undo_global_change"):
+            self.undo_global_change()
 
     def redo_text(self):
         if self.preview_text.hasFocus():
             self.preview_text.redo()
+            return
+        if hasattr(self, "redo_global_change"):
+            self.redo_global_change()
 
     def to_upper(self):
         if self.preview_text.hasFocus():

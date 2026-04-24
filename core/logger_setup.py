@@ -23,7 +23,7 @@ def _cleanup_old_logs():
     for stale in files[LOG_RETENTION_FILES:]:
         try:
             stale.unlink()
-        except Exception:
+        except OSError:
             pass
 
 

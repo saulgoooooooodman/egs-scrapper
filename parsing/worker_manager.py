@@ -48,7 +48,7 @@ class WorkerManager:
                 request_cancel = getattr(worker, "request_cancel", None)
                 if callable(request_cancel):
                     request_cancel()
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError):
                 pass
 
         for thread in list(self._threads):
@@ -56,7 +56,7 @@ class WorkerManager:
                 if thread.isRunning():
                     thread.quit()
                     thread.wait(3000)
-            except Exception:
+            except RuntimeError:
                 pass
 
         self._threads.clear()

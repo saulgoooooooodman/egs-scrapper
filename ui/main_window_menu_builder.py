@@ -7,6 +7,7 @@ def build_main_window_menu(self):
     def _describe(action, text: str):
         action.setToolTip(text)
         action.setStatusTip(text)
+        action.hovered.connect(lambda text=text: self.status_label.setText(text))
 
     menu_bar = self.menuBar()
     menu_bar.clear()
@@ -22,6 +23,11 @@ def build_main_window_menu(self):
     _describe(self.action_change_profile, "Kullanıcı adı, kanal ve kök klasör gibi profil bilgilerini değiştirir.")
     self.action_change_profile.triggered.connect(self.change_profile)
     file_menu.addAction(self.action_change_profile)
+
+    self.action_open_settings = QAction("Ayarlar", self)
+    _describe(self.action_open_settings, "Programın tüm temel ayarlarını ayrı pencerede açar.")
+    self.action_open_settings.triggered.connect(self.open_settings_dialog)
+    file_menu.addAction(self.action_open_settings)
 
     file_menu.addSeparator()
 
@@ -70,19 +76,19 @@ def build_main_window_menu(self):
 
     scan_menu = file_menu.addMenu("Tarama ve Yenileme")
 
-    self.action_refresh = QAction("Yenile", self)
+    self.action_refresh = QAction("Sayfayı Yenile", self)
     _describe(self.action_refresh, "Seçili tarihin haberlerini yeniden tarar ve listeyi günceller.")
     self.action_refresh.setShortcut("F5")
     self.action_refresh.triggered.connect(self.load_news)
     scan_menu.addAction(self.action_refresh)
 
-    self.action_force_refresh = QAction("Zorla Yenile", self)
-    _describe(self.action_force_refresh, "Önbelleği atlayıp dosyaları yeniden parse eder ve DB kayıtlarını tazeler.")
+    self.action_force_refresh = QAction("Veritabanını Güncelle", self)
+    _describe(self.action_force_refresh, "Seçili günün veritabanı kayıtlarını siler, dosyaları yeniden okur ve tekrar yazar.")
     self.action_force_refresh.triggered.connect(lambda: self.load_news(force_refresh=True))
     scan_menu.addAction(self.action_force_refresh)
 
     self.action_clear_cache = QAction("Önbelleği Temizle", self)
-    _describe(self.action_clear_cache, "Dosya önbelleğini temizler; sonraki yüklemede dosyalar yeniden kontrol edilir.")
+    _describe(self.action_clear_cache, "Dosya önbelleğini temizler; sonraki yenilemede dosyalar yeniden okunur.")
     self.action_clear_cache.triggered.connect(self.clear_cache)
     scan_menu.addAction(self.action_clear_cache)
 
@@ -197,6 +203,29 @@ def build_main_window_menu(self):
 
     search_menu.addSeparator()
 
+    self.action_search_regex = QAction("Düzenli İfadeler", self)
+    _describe(self.action_search_regex, "Arama kutusundaki ifadeyi regex olarak yorumlar.")
+    self.action_search_regex.setCheckable(True)
+    self.action_search_regex.triggered.connect(self.toggle_search_regex)
+    search_menu.addAction(self.action_search_regex)
+
+    regex_examples = [
+        (".*", "Her şeyi eşleştirir."),
+        (".+", "Boş olmayan içeriği eşleştirir."),
+        ("\\d+", "Sayıları eşleştirir."),
+        ("\\bERD", "Kelime başında ERD arar."),
+        ("TRUMP.*ATEŞKES", "İki ifade arasındaki tüm metni kapsar."),
+        ("^WEU", "WEU ile başlayan başlıkları bulur."),
+        ("VTR$", "VTR ile biten başlıkları bulur."),
+        ("[A-Z]{2,}", "Büyük harf bloklarını bulur."),
+        ("?", "Tek başına regex değildir; önceki karakteri isteğe bağlı yapar."),
+        ("*", "Tek başına regex değildir; önceki ifadeyi tekrarlar."),
+    ]
+    for pattern, description in regex_examples:
+        action = QAction(pattern, self)
+        _describe(action, description)
+        action.triggered.connect(lambda _=False, pattern=pattern: self.insert_search_pattern(pattern))
+
     self.action_archive_search = QAction("Arşiv Ara", self)
     _describe(self.action_archive_search, "Tarih aralığında arşiv veritabanlarını tarayarak geçmiş kayıtları bulur.")
     self.action_archive_search.setShortcut("F7")
@@ -215,18 +244,36 @@ def build_main_window_menu(self):
     self.action_live_watch.triggered.connect(self.toggle_live_watch)
     view_menu.addAction(self.action_live_watch)
 
-    self.action_toggle_code = QAction("Haber Kodlarını Göster / Gizle", self)
+    self.action_toggle_code = QAction("Haber Kodlarını Gizle", self)
     _describe(self.action_toggle_code, "Listede haber kodu sütununu açıp kapatır.")
     self.action_toggle_code.triggered.connect(self.toggle_code_column)
     view_menu.addAction(self.action_toggle_code)
 
-    self.action_show_previous_day_news = QAction("Önceki Günün Haberlerini Gizle", self)
+    self.action_show_corrected_titles = QAction("Düzeltilmiş Başlıkları Göster", self)
+    _describe(
+        self.action_show_corrected_titles,
+        "Listede düzeltilmiş başlığı gösterir. Başlık ön ekleri alfabetik düzeni bozmasın diye gizlenir.",
+    )
+    self.action_show_corrected_titles.setCheckable(True)
+    self.action_show_corrected_titles.triggered.connect(self.toggle_show_corrected_titles_in_list)
+    view_menu.addAction(self.action_show_corrected_titles)
+
+    self.action_show_previous_day_news = QAction("Eski Haberleri Gizle", self)
     _describe(self.action_show_previous_day_news, "İşaretliyken dosya adından önceki güne ait olduğu anlaşılan kayıtları gizler.")
     self.action_show_previous_day_news.setCheckable(True)
     self.action_show_previous_day_news.triggered.connect(self.toggle_previous_day_news)
     view_menu.addAction(self.action_show_previous_day_news)
 
-    self.action_show_all_titles = QAction("Tüm Haber Başlıklarını Göster", self)
+    self.action_toggle_symbol_titles = QAction("Sembol ile Başlayan Başlıkları Gizle", self)
+    _describe(
+        self.action_toggle_symbol_titles,
+        "Seçili kanalda +, !, #, * ile başlayan genel başlıkları gizler. Gerçek haber kodu olarak tanımlı sembollü kodlar etkilenmez.",
+    )
+    self.action_toggle_symbol_titles.setCheckable(True)
+    self.action_toggle_symbol_titles.triggered.connect(self.toggle_symbol_prefixed_titles)
+    view_menu.addAction(self.action_toggle_symbol_titles)
+
+    self.action_show_all_titles = QAction("Aynı Başlıklı Haberlerin Tümünü Göster", self)
     _describe(self.action_show_all_titles, "Aynı başlığa sahip tüm kayıtları listede gösterir.")
     self.action_show_all_titles.setCheckable(True)
     self.action_show_all_titles.triggered.connect(self.set_duplicate_mode_off)
@@ -234,13 +281,17 @@ def build_main_window_menu(self):
 
     same_titles_menu = view_menu.addMenu("Aynı Haber Başlıkları")
 
-    self.action_hide_old = QAction("Yalnızca Eski Tarihli Haberleri Gizle", self)
+    self.action_show_all_titles.setText("Tümünü Göster")
+    view_menu.removeAction(self.action_show_all_titles)
+    same_titles_menu.addAction(self.action_show_all_titles)
+
+    self.action_hide_old = QAction("Eski Tarihli Haberleri Gizle", self)
     _describe(self.action_hide_old, "Aynı başlıkta en güncel kaydı bırakıp eski olanları gizler.")
     self.action_hide_old.setCheckable(True)
     self.action_hide_old.triggered.connect(self.set_duplicate_mode_latest)
     same_titles_menu.addAction(self.action_hide_old)
 
-    self.action_hide_new = QAction("Yalnızca Yeni Tarihli Haberleri Gizle", self)
+    self.action_hide_new = QAction("Yeni Tarihli Haberleri Gizle", self)
     _describe(self.action_hide_new, "Aynı başlıkta en eski kaydı bırakıp yeni olanları gizler.")
     self.action_hide_new.setCheckable(True)
     self.action_hide_new.triggered.connect(self.set_duplicate_mode_oldest)
@@ -251,6 +302,12 @@ def build_main_window_menu(self):
     self.action_remember_window.setCheckable(True)
     self.action_remember_window.triggered.connect(self.toggle_remember_window_geometry)
     view_menu.addAction(self.action_remember_window)
+
+    self.action_remember_last_date = QAction("Kaldığım Günü Hatırla", self)
+    _describe(self.action_remember_last_date, "Açılışta son kullanılan tarihi otomatik geri yükler.")
+    self.action_remember_last_date.setCheckable(True)
+    self.action_remember_last_date.triggered.connect(self.toggle_remember_last_date)
+    view_menu.addAction(self.action_remember_last_date)
 
     font_menu = view_menu.addMenu("Yazı Boyutu")
 
@@ -287,10 +344,32 @@ def build_main_window_menu(self):
     self.action_rules.triggered.connect(self.open_rules_manager)
     tools_menu.addAction(self.action_rules)
 
-    self.action_reload_spell = QAction("Yazım Denetimini Yeniden Algıla", self)
-    _describe(self.action_reload_spell, "Gelişmiş yazım denetimi bileşenini yeniden kontrol eder ve durumu günceller.")
+    spell_menu = tools_menu.addMenu("Haber Başlığı Yazım Denetimi")
+
+    self.action_spellcheck_off = QAction("Kapalı", self)
+    _describe(self.action_spellcheck_off, "Başlık yazım denetimini tamamen kapatır.")
+    self.action_spellcheck_off.setCheckable(True)
+    self.action_spellcheck_off.triggered.connect(lambda: self.set_title_spellcheck_mode("off"))
+    spell_menu.addAction(self.action_spellcheck_off)
+
+    self.action_spellcheck_manual = QAction("Elle", self)
+    _describe(self.action_spellcheck_manual, "Başlık yazım denetimini yalnızca sağ tık bağlam menüsünden çalıştırır.")
+    self.action_spellcheck_manual.setCheckable(True)
+    self.action_spellcheck_manual.triggered.connect(lambda: self.set_title_spellcheck_mode("manual"))
+    spell_menu.addAction(self.action_spellcheck_manual)
+
+    self.action_spellcheck_auto = QAction("Otomatik", self)
+    _describe(self.action_spellcheck_auto, "Yeni okunan başlıklarda yazım denetimini otomatik uygular.")
+    self.action_spellcheck_auto.setCheckable(True)
+    self.action_spellcheck_auto.triggered.connect(lambda: self.set_title_spellcheck_mode("auto"))
+    spell_menu.addAction(self.action_spellcheck_auto)
+
+    self.action_reload_spell = QAction("Yazım Altyapısını Yeniden Algıla", self)
+    _describe(self.action_reload_spell, "Yazım denetimi altyapısını yeniden kontrol eder ve durumu günceller.")
     self.action_reload_spell.triggered.connect(self.reload_spell_backend)
-    tools_menu.addAction(self.action_reload_spell)
+    self.action_reload_spell.setText("Yazım Altyapısını Denetle")
+    self.action_reload_spell.setToolTip("Türkçe başlık düzeltmesinin hazır olup olmadığını denetler. Yazım düzeltmesi beklenenden zayıfsa bunu kullan.")
+    self.action_reload_spell.setStatusTip(self.action_reload_spell.toolTip())
 
     tools_menu.addSeparator()
 
@@ -306,6 +385,11 @@ def build_main_window_menu(self):
     self.action_history_scan.triggered.connect(self.run_history_scan)
     tools_menu.addAction(self.action_history_scan)
 
+    self.action_statistics = QAction("İstatistikler", self)
+    _describe(self.action_statistics, "Tarih aralığı ve kanal seçerek haber sayılarını ve editör dağılımını gösterir.")
+    self.action_statistics.triggered.connect(self.open_statistics_dialog)
+    tools_menu.addAction(self.action_statistics)
+
     self.action_help = QAction("Yardım", self)
     _describe(self.action_help, "Programın kullanım rehberini açar.")
     self.action_help.triggered.connect(self.open_help_dialog)
@@ -320,3 +404,12 @@ def build_main_window_menu(self):
     _describe(self.action_logs, "Uygulamanın günlük kayıtlarını görüntüler.")
     self.action_logs.triggered.connect(self.open_log_viewer)
     help_menu.addAction(self.action_logs)
+
+    help_menu.addSeparator()
+
+    help_regex_menu = help_menu.addMenu("Düzenli İfadeler")
+    for pattern, description in regex_examples:
+        action = QAction(pattern, self)
+        _describe(action, description)
+        action.triggered.connect(lambda _=False, pattern=pattern: self.insert_search_pattern(pattern))
+        help_regex_menu.addAction(action)

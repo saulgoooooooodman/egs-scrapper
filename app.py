@@ -1,5 +1,6 @@
 import sys
 import traceback
+import logging
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -8,6 +9,7 @@ from main_window import MainWindow
 
 
 APP_WINDOW = None
+logger = logging.getLogger("EGS.App")
 
 
 def main():
@@ -18,21 +20,21 @@ def main():
 
     try:
         setup_logging()
-    except Exception:
+    except (OSError, RuntimeError):
         traceback.print_exc()
 
     try:
         install_exception_hook()
-    except Exception:
-        traceback.print_exc()
+    except RuntimeError:
+        logger.exception("Global exception hook kurulamadı")
 
     try:
         APP_WINDOW = MainWindow()
         APP_WINDOW.show()
     except SystemExit:
         raise
-    except Exception as exc:
-        traceback.print_exc()
+    except (ImportError, OSError, RuntimeError, ValueError, AttributeError) as exc:
+        logger.exception("Uygulama başlatılamadı")
         QMessageBox.critical(
             None,
             "Başlatma Hatası",

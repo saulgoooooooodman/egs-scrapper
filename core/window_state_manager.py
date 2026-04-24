@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 
 from core.settings_manager import save_settings
 
@@ -11,7 +12,7 @@ def save_window_state(window):
         encoded = base64.b64encode(bytes(geometry)).decode("ascii")
         window.settings["window_geometry"] = encoded
         save_settings(window.settings)
-    except Exception:
+    except (AttributeError, TypeError, ValueError, OSError, RuntimeError):
         pass
 
 
@@ -26,5 +27,5 @@ def restore_window_state(window):
 
         geometry = base64.b64decode(encoded.encode("ascii"))
         window.restoreGeometry(geometry)
-    except Exception:
+    except (AttributeError, TypeError, ValueError, binascii.Error, RuntimeError):
         pass

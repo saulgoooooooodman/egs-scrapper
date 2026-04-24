@@ -62,6 +62,8 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
         self.conn = None
         self._load_request_token = 0
         self._active_load_token = 0
+        self._global_undo_history = []
+        self._global_redo_history = []
         self.selected_codes = set()
         self.code_filter_hide_mode = bool(self.settings.get("main_code_filter_hide_mode", False))
         self.backfill_dialog = None
@@ -76,7 +78,12 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
         self.live_reload_watcher.reload_requested.connect(self._on_live_reload_requested)
 
         self.date_edit.blockSignals(True)
-        self.date_edit.setDate(QDate.currentDate())
+        initial_date = QDate.currentDate()
+        if bool(self.settings.get("remember_last_date", False)):
+            saved_date = QDate.fromString(str(self.settings.get("last_selected_date", "")), "yyyy-MM-dd")
+            if saved_date.isValid():
+                initial_date = saved_date
+        self.date_edit.setDate(initial_date)
         self.date_edit.blockSignals(False)
         self.load_main_ui_settings()
         restore_window_state(self)
@@ -106,19 +113,31 @@ class MainWindow(MainWindowActions, MainWindowStateHooks, QMainWindow):
 
         date = self.date_edit.date().toString("dd.MM.yyyy")
         target_dir = build_date_path(self.root_folder, date)
-
         paths = []
+
+        try:
+            year_dir = target_dir.parent
+            if year_dir.exists():
+                paths.append(str(year_dir))
+        except OSError:
+            pass
+
         try:
             if target_dir.exists():
                 paths.append(str(target_dir))
-        except Exception:
-            pass
+                for child_dir in sorted(path for path in target_dir.rglob("*") if path.is_dir()):
+                    paths.append(str(child_dir))
+            else:
+                paths.append(str(target_dir))
+        except OSError:
+            paths.append(str(target_dir))
 
         self.live_reload_watcher.watch_paths(paths)
 
     def _on_live_reload_requested(self):
         if bool(self.settings.get("live_watch_enabled", False)):
-            self.load_news()
+            self._refresh_live_watch_paths()
+            self.load_news(force_refresh=False)
 
     def toggle_live_watch(self):
         enabled = self.action_live_watch.isChecked()

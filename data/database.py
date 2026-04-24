@@ -1,10 +1,14 @@
 import os
+import re
 import sqlite3
 from pathlib import Path
 from datetime import date
 
 from core.app_paths import DATABASES_DIR
-from core.rules_store import get_channel_rules
+from core.rules_store import display_rule_code, get_channel_rules, normalize_rule_code
+from core.text_utils import normalize_search_text, turkish_sort_key
+from core.title_rules import get_body_prefix_text, is_special_od_code
+from parsing.news_service import build_story_text
 
 
 _PATH_MIGRATIONS_DONE: set[str] = set()
@@ -127,7 +131,33 @@ def _migrate_path_storage(conn: sqlite3.Connection, db_key: str):
 def _resolve_news_category(channel_name: str, news_code: str) -> str:
     rules = get_channel_rules(channel_name)
     codes = rules.get("news_codes", {})
-    return codes.get(news_code, codes.get((news_code or "").upper(), ""))
+    direct = codes.get(news_code, codes.get((news_code or "").upper(), ""))
+    if direct:
+        return direct
+
+    normalized_code = normalize_rule_code(news_code)
+    if normalized_code.endswith("-OD"):
+        base_code = normalized_code[:-3].strip("- ")
+        base_label = _resolve_news_category(channel_name, base_code)
+        if base_label:
+            base_label = re.sub(r"\s+HABER$", "", base_label.strip(), flags=re.IGNORECASE)
+            return f"{base_label} ÖZEL DOSYA".strip()
+    if normalized_code.endswith("-(OD)"):
+        base_code = normalized_code[:-5].strip("- ")
+        base_label = _resolve_news_category(channel_name, base_code)
+        if base_label:
+            base_label = re.sub(r"\s+HABER$", "", base_label.strip(), flags=re.IGNORECASE)
+            return f"{base_label} ÖZEL DOSYA".strip()
+
+    display_code = display_rule_code(news_code)
+    direct = codes.get(display_code, codes.get(display_code.upper(), ""))
+    if direct:
+        return direct
+
+    for raw_code, label in codes.items():
+        if display_rule_code(raw_code) == display_code:
+            return label
+    return ""
 
 
 def _month_start(value: date) -> date:
@@ -230,6 +260,7 @@ def init_db(channel_name: str, iso_date: str | None = None):
             file_name TEXT,
             title TEXT,
             corrected_title TEXT,
+            list_title TEXT,
             news_code TEXT,
             news_category TEXT,
             format_code TEXT,
@@ -255,6 +286,7 @@ def init_db(channel_name: str, iso_date: str | None = None):
     """)
 
     _ensure_column(cur, "news", "corrected_title", "TEXT")
+    _ensure_column(cur, "news", "list_title", "TEXT")
     _ensure_column(cur, "news", "format_code", "TEXT")
     _ensure_column(cur, "news", "format_name", "TEXT")
     _ensure_column(cur, "news", "kj_lines", "TEXT")
@@ -292,18 +324,19 @@ def upsert_news(channel_name: str, item: dict, conn: sqlite3.Connection | None =
 
     cur.execute("""
         INSERT INTO news (
-            path, file_name, title, corrected_title,
+            path, file_name, title, corrected_title, list_title,
             news_code, news_category,
             format_code, format_name,
             summary, body, kj_lines, final_text,
             editors, iso_date, date_str,
             mtime, size
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT DO UPDATE SET
             file_name=excluded.file_name,
             title=excluded.title,
             corrected_title=excluded.corrected_title,
+            list_title=excluded.list_title,
             news_code=excluded.news_code,
             news_category=excluded.news_category,
             format_code=excluded.format_code,
@@ -322,6 +355,7 @@ def upsert_news(channel_name: str, item: dict, conn: sqlite3.Connection | None =
         item.get("file_name", ""),
         item.get("title", ""),
         item.get("corrected_title", ""),
+        item.get("list_title", ""),
         news_code,
         news_category,
         item.get("format_code", ""),
@@ -390,6 +424,43 @@ def _text_to_lines(value) -> list[str]:
     return [line.strip() for line in str(value).splitlines() if line.strip()]
 
 
+def _repair_special_od_final_text(
+    *,
+    channel_name: str,
+    news_code: str,
+    title: str,
+    corrected_title: str,
+    summary: str,
+    body: str,
+    kj_lines: list[str],
+    final_text: str,
+) -> str:
+    clean_final = str(final_text or "").strip()
+    if not is_special_od_code(news_code):
+        return clean_final
+
+    lead_block = clean_final.split("\n\n", 1)[0].strip() if clean_final else ""
+    normalized_lead = normalize_search_text(lead_block)
+    if lead_block and (
+        "-" in lead_block
+        or not (
+            normalized_lead == normalize_search_text("ÖZEL DOSYA")
+            or normalized_lead.endswith(normalize_search_text("DOSYA"))
+        )
+    ):
+        return clean_final
+
+    return build_story_text(
+        original_title=title,
+        corrected_title=corrected_title,
+        summary=summary,
+        body=body,
+        kj_lines=kj_lines,
+        body_prefix=get_body_prefix_text(channel_name, news_code, corrected_title or title),
+        news_code=news_code,
+    )
+
+
 def get_news_for_date(channel_name: str, iso_date: str) -> list[dict]:
     items = []
     seen_paths = set()
@@ -401,6 +472,7 @@ def get_news_for_date(channel_name: str, iso_date: str) -> list[dict]:
                 file_name,
                 title,
                 corrected_title,
+                list_title,
                 news_code,
                 news_category,
                 format_code,
@@ -416,7 +488,7 @@ def get_news_for_date(channel_name: str, iso_date: str) -> list[dict]:
                 size
             FROM news
             WHERE iso_date = ?
-            ORDER BY news_code COLLATE NOCASE, title COLLATE NOCASE, file_name COLLATE NOCASE
+            ORDER BY news_code COLLATE NOCASE, list_title COLLATE NOCASE, file_name COLLATE NOCASE
         """, (iso_date,))
 
         for row in cur.fetchall():
@@ -427,32 +499,48 @@ def get_news_for_date(channel_name: str, iso_date: str) -> list[dict]:
                     continue
                 seen_paths.add(path_key)
 
-            news_code = row[4] or ""
-            news_category = row[5] or _resolve_news_category(channel_name, news_code)
+            news_code = display_rule_code(normalize_rule_code(row[5] or ""))
+            news_category = row[6] or _resolve_news_category(channel_name, news_code)
+            title = row[2] or ""
+            corrected_title = row[3] or ""
+            summary = row[9] or ""
+            body = row[10] or ""
+            kj_lines = _text_to_lines(row[11])
+            final_text = _repair_special_od_final_text(
+                channel_name=channel_name,
+                news_code=news_code,
+                title=title,
+                corrected_title=corrected_title,
+                summary=summary,
+                body=body,
+                kj_lines=kj_lines,
+                final_text=row[12] or "",
+            )
             items.append({
                 "path": path,
                 "file_name": row[1] or "",
-                "title": row[2] or "",
-                "corrected_title": row[3] or "",
+                "title": title,
+                "corrected_title": corrected_title,
+                "list_title": row[4] or corrected_title or title or "",
                 "news_code": news_code,
                 "news_category": news_category,
-                "format_code": row[6] or "",
-                "format_name": row[7] or "",
-                "summary": row[8] or "",
-                "body": row[9] or "",
-                "kj_lines": _text_to_lines(row[10]),
-                "final_text": row[11] or "",
-                "editors": _text_to_lines(row[12]),
-                "iso_date": row[13] or "",
-                "date_str": row[14] or "",
-                "mtime": row[15],
-                "size": row[16],
+                "format_code": row[7] or "",
+                "format_name": row[8] or "",
+                "summary": summary,
+                "body": body,
+                "kj_lines": kj_lines,
+                "final_text": final_text,
+                "editors": _text_to_lines(row[13]),
+                "iso_date": row[14] or "",
+                "date_str": row[15] or "",
+                "mtime": row[16],
+                "size": row[17],
             })
 
     items.sort(key=lambda item: (
-        str(item.get("news_code", "")).lower(),
-        str(item.get("title", "")).lower(),
-        str(item.get("file_name", "")).lower(),
+        str(item.get("news_code", "")).casefold(),
+        turkish_sort_key(item.get("list_title", "") or item.get("corrected_title", "") or item.get("title", "")),
+        str(item.get("file_name", "")).casefold(),
     ))
 
     return items
@@ -680,3 +768,73 @@ def search_archive(
 def merge_external_database_into_channel(channel_name: str, external_db_path: str):
     from data.database_merge import merge_external_database_into_channel as _merge
     return _merge(channel_name, external_db_path)
+
+
+def get_archive_statistics(
+    channel_name: str,
+    start_iso_date: str | None = None,
+    end_iso_date: str | None = None,
+) -> dict:
+    seen_paths = set()
+    per_day: dict[str, int] = {}
+    per_month: dict[str, int] = {}
+    per_year: dict[str, int] = {}
+    per_editor: dict[str, int] = {}
+    total_news = 0
+
+    for _, conn in _iter_news_connections(channel_name, start_iso_date, end_iso_date):
+        cur = conn.cursor()
+        sql = """
+            SELECT path, file_name, iso_date, editors
+            FROM news
+            WHERE 1=1
+        """
+        params = []
+
+        if start_iso_date:
+            sql += " AND iso_date >= ?"
+            params.append(start_iso_date)
+        if end_iso_date:
+            sql += " AND iso_date <= ?"
+            params.append(end_iso_date)
+
+        cur.execute(sql, params)
+        for raw_path, file_name, iso_date, editors_text in cur.fetchall():
+            normalized_path = normalize_db_path(raw_path or "")
+            item_key = (
+                _path_key(normalized_path) if normalized_path else "",
+                str(file_name or "").strip().casefold(),
+                str(iso_date or "").strip(),
+            )
+            if item_key in seen_paths:
+                continue
+            seen_paths.add(item_key)
+
+            day_key = str(iso_date or "").strip()
+            if not day_key:
+                continue
+
+            total_news += 1
+            per_day[day_key] = per_day.get(day_key, 0) + 1
+            per_month[day_key[:7]] = per_month.get(day_key[:7], 0) + 1
+            per_year[day_key[:4]] = per_year.get(day_key[:4], 0) + 1
+
+            for editor in _text_to_lines(editors_text):
+                per_editor[editor] = per_editor.get(editor, 0) + 1
+
+    def _sorted_items(mapping: dict[str, int]) -> list[dict]:
+        return [
+            {"label": label, "count": count}
+            for label, count in sorted(
+                mapping.items(),
+                key=lambda item: (-item[1], item[0]),
+            )
+        ]
+
+    return {
+        "total_news": total_news,
+        "per_year": _sorted_items(per_year),
+        "per_month": _sorted_items(per_month),
+        "per_day": _sorted_items(per_day),
+        "per_editor": _sorted_items(per_editor),
+    }

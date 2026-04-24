@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -55,12 +56,11 @@ class LogViewerDialog(QDialog):
 
         try:
             self.text.setPlainText(log_file.read_text(encoding="utf-8"))
-        except Exception as exc:
+        except OSError as exc:
             self.text.setPlainText(f"Log okunamadı:\n{exc}")
 
     def open_folder(self):
         try:
-            import os
             os.startfile(str(LOG_DIR))
-        except Exception as exc:
+        except OSError as exc:
             QMessageBox.critical(self, "Hata", f"Klasör açılamadı:\n{exc}")

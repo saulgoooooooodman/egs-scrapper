@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import csv
+import html
 import os
 import re
+import subprocess
+import sqlite3
 from threading import Event
 
 from PySide6.QtCore import QDate, Qt, QThread, Signal
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -16,6 +20,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QFileDialog,
     QMessageBox,
     QMenu,
     QPushButton,
@@ -28,7 +33,9 @@ from PySide6.QtWidgets import (
 )
 
 from data.database import search_archive
+from core.settings_manager import load_settings, save_settings
 from core.rules_store import get_channel_rules
+from core.shell_utils import show_file_in_explorer
 from dialogs.code_filter_wizard import CodeFilterWizardDialog
 from ui.main_window_context_menus import show_readonly_text_context_menu
 
@@ -88,7 +95,7 @@ class ArchiveSearchWorker(QThread):
                 should_cancel=self._cancel_event.is_set,
                 error_sink=search_errors,
             )
-        except Exception as exc:
+        except (sqlite3.Error, OSError, ValueError) as exc:
             self.search_failed.emit(str(exc))
             return
 
@@ -111,13 +118,15 @@ class ArchiveSearchDialog(QDialog):
         self.code_filter_hide_mode = False
         self.query_rows = []
         self.search_worker = None
+        self._last_query_clauses = []
+        self._settings = self._load_dialog_settings()
 
         layout = QVBoxLayout(self)
         parent_date = None
         if parent is not None and hasattr(parent, "date_edit"):
             try:
                 parent_date = parent.date_edit.date()
-            except Exception:
+            except RuntimeError:
                 parent_date = None
         selected_date = parent_date if parent_date and parent_date.isValid() else QDate.currentDate()
 
@@ -148,6 +157,14 @@ class ArchiveSearchDialog(QDialog):
         self.search_btn.setToolTip("Seçilen tarih aralığında arşiv veritabanlarını tarar.")
         self.search_btn.clicked.connect(self.run_search)
         query_top.addWidget(self.search_btn)
+
+        self.export_btn = QPushButton("Dışa Aktar")
+        self.export_btn.setAutoDefault(False)
+        self.export_btn.setDefault(False)
+        self.export_btn.setEnabled(False)
+        self.export_btn.setToolTip("Arşiv sonuçlarını CSV veya XLS olarak kaydeder.")
+        self.export_btn.clicked.connect(self.export_results)
+        query_top.addWidget(self.export_btn)
 
         self.cancel_btn = QPushButton("İptal")
         self.cancel_btn.setAutoDefault(False)
@@ -214,6 +231,7 @@ class ArchiveSearchDialog(QDialog):
             "Arşiv sonuçlarını editör adına göre süzer. "
             "Birden fazla editörü virgülle ayırabilirsin; herhangi biri eşleşirse kayıt gösterilir."
         )
+        self.editor_filter_input.returnPressed.connect(self.run_search)
         editor_row.addWidget(self.editor_filter_input, 1)
 
         layout.addLayout(editor_row)
@@ -225,18 +243,19 @@ class ArchiveSearchDialog(QDialog):
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(["Tarih", "Kod", "Başlık", "Editör", "Kaynak", "Önizleme"])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionsMovable(True)
+        for column in range(self.table.columnCount()):
+            self.table.horizontalHeader().setSectionResizeMode(column, QHeaderView.Interactive)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(self.table.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(self.table.SelectionMode.SingleSelection)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_results_context_menu)
+        self.table.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.horizontalHeader().customContextMenuRequested.connect(self.show_header_context_menu)
+        self.table.horizontalHeader().sectionResized.connect(lambda *_: self._save_table_preferences())
+        self.table.horizontalHeader().sectionMoved.connect(lambda *_: self._save_table_preferences())
         self.table.setToolTip("Arşiv arama sonuçları. Bir satır seçtiğinde alt bölümde tam önizleme açılır.")
         layout.addWidget(self.table, 1)
 
@@ -249,14 +268,74 @@ class ArchiveSearchDialog(QDialog):
         )
         layout.addWidget(self.preview, 1)
 
+        self.status_label = QLabel("Hazır")
+        self.status_label.setStyleSheet("padding:4px 6px; border-top:1px solid #cbd5e1; color:#334155;")
+        layout.addWidget(self.status_label)
+
         self._update_code_filter_label()
         self._refresh_query_row_buttons()
+        self._apply_table_preferences()
 
     def _set_search_state(self, is_running: bool, message: str):
         self.search_btn.setEnabled(not is_running)
         self.search_btn.setText("Aranıyor..." if is_running else "Ara")
         self.cancel_btn.setEnabled(is_running)
         self.result_info_label.setText(message)
+        self.status_label.setText(message)
+
+    def _load_dialog_settings(self) -> dict:
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "settings"):
+            return parent.settings
+        return load_settings()
+
+    def _persist_dialog_settings(self):
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "schedule_settings_save"):
+            parent.schedule_settings_save()
+        else:
+            save_settings(self._settings)
+
+    def _save_table_preferences(self):
+        self._settings["archive_table_widths"] = [
+            int(self.table.columnWidth(column))
+            for column in range(self.table.columnCount())
+        ]
+        self._settings["archive_table_hidden_columns"] = [
+            column
+            for column in range(self.table.columnCount())
+            if self.table.isColumnHidden(column)
+        ]
+        self._persist_dialog_settings()
+
+    def _apply_table_preferences(self):
+        default_widths = [110, 90, 320, 180, 150, 260]
+        widths = self._settings.get("archive_table_widths", default_widths)
+        if not isinstance(widths, list):
+            widths = default_widths
+        for column in range(self.table.columnCount()):
+            width = widths[column] if column < len(widths) else default_widths[min(column, len(default_widths) - 1)]
+            self.table.setColumnWidth(column, int(width))
+
+        hidden = self._settings.get("archive_table_hidden_columns", [])
+        if not isinstance(hidden, list):
+            hidden = []
+        for column in range(self.table.columnCount()):
+            self.table.setColumnHidden(column, column in hidden)
+
+    def show_header_context_menu(self, pos):
+        menu = QMenu(self)
+        for column, label in enumerate(["Tarih", "Kod", "Başlık", "Editör", "Kaynak", "Önizleme"]):
+            action = QAction(label, self)
+            action.setCheckable(True)
+            action.setChecked(not self.table.isColumnHidden(column))
+            action.toggled.connect(lambda checked, col=column: self._set_column_visible(col, checked))
+            menu.addAction(action)
+        menu.exec(self.table.horizontalHeader().viewport().mapToGlobal(pos))
+
+    def _set_column_visible(self, column: int, visible: bool):
+        self.table.setColumnHidden(column, not visible)
+        self._save_table_preferences()
 
     def _cleanup_search_worker(self):
         worker = self.search_worker
@@ -394,8 +473,8 @@ class ArchiveSearchDialog(QDialog):
             QMessageBox.warning(self, "Uyarı", f"Dosya bulunamadi:\n{source_path}")
             return
         try:
-            os.system(f'explorer /select,"{source_path}"')
-        except Exception as exc:
+            show_file_in_explorer(source_path)
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
             QMessageBox.critical(self, "Hata", f"Kaynak klasör açılamadi:\n{exc}")
 
     def show_results_context_menu(self, pos):
@@ -441,7 +520,7 @@ class ArchiveSearchDialog(QDialog):
         for index, row_data in enumerate(self.query_rows):
             row_data["remove_btn"].setEnabled(total > 1)
             row_data["add_btn"].setVisible(index == total - 1)
-            row_data["mode_combo"].setVisible(show_modes)
+            row_data["mode_combo"].setVisible(show_modes and index > 0)
 
     def _collect_query_clauses(self):
         clauses = []
@@ -521,6 +600,8 @@ class ArchiveSearchDialog(QDialog):
 
         self.table.setRowCount(0)
         self.preview.clear()
+        self._last_query_clauses = list(clauses)
+        self.export_btn.setEnabled(False)
         self._set_search_state(True, "Arşiv aranıyor...")
 
         self.search_worker = ArchiveSearchWorker(
@@ -576,6 +657,7 @@ class ArchiveSearchDialog(QDialog):
             self.table.setItem(row_index, 3, QTableWidgetItem(self._format_editors(row_data.editors)))
             self.table.setItem(row_index, 4, QTableWidgetItem(row_data.source_name or ""))
             self.table.setItem(row_index, 5, QTableWidgetItem((row_data.final_text or "")[:140]))
+            self._apply_result_row_highlights(row_index, row_data)
 
         if self.results:
             self.table.selectRow(0)
@@ -588,12 +670,15 @@ class ArchiveSearchDialog(QDialog):
             status += f" {len(errors)} veritabani hata verdi."
 
         self._set_search_state(False, status)
+        self.export_btn.setEnabled(bool(self.results))
         self._show_search_warnings(errors)
+        self._save_table_preferences()
 
     def _on_search_failed(self, message: str):
         self.results = []
         self.table.setRowCount(0)
         self.preview.clear()
+        self.export_btn.setEnabled(False)
         self._set_search_state(False, "Arama başarısız.")
         QMessageBox.critical(self, "Hata", f"Arama başarısız:\n{message}")
 
@@ -601,12 +686,14 @@ class ArchiveSearchDialog(QDialog):
         self.results = []
         self.table.setRowCount(0)
         self.preview.clear()
+        self.export_btn.setEnabled(False)
         self._set_search_state(False, "Arama iptal edildi.")
 
     def on_selection_changed(self):
         row = self.table.currentRow()
         if row < 0 or row >= len(self.results):
             self.preview.clear()
+            self.preview.setExtraSelections([])
             return
 
         header = " | ".join(
@@ -620,3 +707,156 @@ class ArchiveSearchDialog(QDialog):
         )
         text = f"{header}\n\n{self.results[row].final_text or ''}"
         self.preview.setPlainText(text)
+        self._apply_preview_highlights()
+
+    def _plain_highlight_clauses(self) -> list[dict]:
+        return [
+            clause
+            for clause in (self._last_query_clauses or [])
+            if str(clause.get("text", "") or "").strip()
+        ]
+
+    def _text_matches_clause(self, text: str, clause: dict) -> bool:
+        value = str(text or "")
+        pattern = str(clause.get("text", "") or "").strip()
+        if not value or not pattern:
+            return False
+
+        if self.regex_checkbox.isChecked():
+            try:
+                return bool(re.search(pattern, value, re.IGNORECASE))
+            except re.error:
+                return False
+
+        from core.text_utils import normalize_search_text
+
+        haystack = normalize_search_text(value)
+        needle = normalize_search_text(pattern)
+        if not haystack or not needle:
+            return False
+        if self.exact_checkbox.isChecked():
+            return haystack == needle
+        return needle in haystack
+
+    def _apply_result_row_highlights(self, row_index: int, row_data):
+        values = {
+            0: self._format_display_date(row_data.iso_date),
+            1: row_data.news_code or "",
+            2: row_data.title or "",
+            3: self._format_editors(row_data.editors),
+            4: row_data.source_name or "",
+            5: (row_data.final_text or "")[:140],
+        }
+        highlight_color = QColor("#FFF3A3")
+        for clause in self._plain_highlight_clauses():
+            for column, value in values.items():
+                if not self._text_matches_clause(value, clause):
+                    continue
+                item = self.table.item(row_index, column)
+                if item is not None:
+                    item.setBackground(highlight_color)
+
+    def _apply_preview_highlights(self):
+        selections = []
+        text = self.preview.toPlainText()
+        if not text:
+            self.preview.setExtraSelections(selections)
+            return
+
+        highlight_format = QTextCharFormat()
+        highlight_format.setBackground(QColor("#FFF3A3"))
+
+        for clause in self._plain_highlight_clauses():
+            pattern = str(clause.get("text", "") or "").strip()
+            if not pattern:
+                continue
+            if self.regex_checkbox.isChecked():
+                try:
+                    matches = list(re.finditer(pattern, text, re.IGNORECASE))
+                except re.error:
+                    matches = []
+            else:
+                matches = list(re.finditer(re.escape(pattern), text, re.IGNORECASE))
+
+            for match in matches:
+                cursor = self.preview.textCursor()
+                cursor.setPosition(match.start())
+                cursor.setPosition(match.end(), QTextCursor.KeepAnchor)
+                selection = QTextEdit.ExtraSelection()
+                selection.cursor = cursor
+                selection.format = highlight_format
+                selections.append(selection)
+
+        self.preview.setExtraSelections(selections)
+
+    def export_results(self):
+        if not self.results:
+            QMessageBox.information(self, "Dışa Aktar", "Önce arama sonucu oluştur.")
+            return
+
+        default_name = f"arsiv_arama_{QDate.currentDate().toString('yyyyMMdd')}"
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Arşiv Sonuçlarını Dışa Aktar",
+            default_name,
+            "CSV Dosyası (*.csv);;Excel Dosyası (*.xls)",
+        )
+        if not file_path:
+            return
+
+        headers = ["Tarih", "Kod", "Başlık", "Editör", "Kaynak", "Önizleme"]
+        rows = [
+            [
+                self._format_display_date(result.iso_date),
+                result.news_code or "",
+                result.title or "",
+                self._format_editors(result.editors),
+                result.source_name or "",
+                result.final_text or "",
+            ]
+            for result in self.results
+        ]
+
+        try:
+            if file_path.lower().endswith(".xls") or "xls" in selected_filter.lower():
+                self._export_results_xls(file_path, headers, rows)
+            else:
+                self._export_results_csv(file_path, headers, rows)
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "Dışa Aktar", f"Dışa aktarma başarısız:\n{exc}")
+            return
+
+        self.status_label.setText(f"Sonuçlar dışa aktarıldı: {file_path}")
+
+    def _export_results_csv(self, file_path: str, headers: list[str], rows: list[list[str]]):
+        export_path = file_path if file_path.lower().endswith(".csv") else f"{file_path}.csv"
+        with open(export_path, "w", encoding="utf-8-sig", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(headers)
+            writer.writerows(rows)
+
+    def _export_results_xls(self, file_path: str, headers: list[str], rows: list[list[str]]):
+        export_path = file_path if file_path.lower().endswith(".xls") else f"{file_path}.xls"
+        table_headers = "".join(f"<th>{html.escape(header)}</th>" for header in headers)
+        table_rows = []
+        for row in rows:
+            cells = "".join(f"<td>{html.escape(str(value or ''))}</td>" for value in row)
+            table_rows.append(f"<tr>{cells}</tr>")
+
+        content = (
+            "<html><head><meta charset='utf-8'></head><body>"
+            "<table border='1'>"
+            f"<thead><tr>{table_headers}</tr></thead>"
+            f"<tbody>{''.join(table_rows)}</tbody>"
+            "</table></body></html>"
+        )
+        with open(export_path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+
+    def accept(self):
+        self._save_table_preferences()
+        super().accept()
+
+    def reject(self):
+        self._save_table_preferences()
+        super().reject()

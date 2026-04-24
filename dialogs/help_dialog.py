@@ -81,7 +81,7 @@ class HelpDialog(QDialog):
         if HELP_FILE.exists():
             try:
                 content = HELP_FILE.read_text(encoding="utf-8")
-            except Exception:
+            except OSError:
                 content = "Yardım dosyası okunamadı."
         else:
             content = "Yardım dosyası bulunamadı."

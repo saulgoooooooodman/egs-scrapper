@@ -23,9 +23,10 @@ def build_filter_bar(self, main_layout):
 
     self.search_input = QLineEdit()
     self.search_input.setPlaceholderText("Başlık veya haber metni ara...")
+    self.search_input.setClearButtonEnabled(True)
     self.search_input.setToolTip(
         "Yüklü listedeki haberleri anında filtreler. "
-        "Regex kapalıysa normal kelime araması, açıksa düzenli ifade araması yapılır."
+        "Düzenli ifadeler menüden açılırsa arama kutusu regex olarak çalışır."
     )
     self.search_input.textChanged.connect(self.apply_filters)
     filter_layout.addWidget(self.search_input, 1)
@@ -40,12 +41,12 @@ def build_filter_bar(self, main_layout):
     self.search_scope_combo.currentIndexChanged.connect(self.apply_filters)
     filter_layout.addWidget(self.search_scope_combo)
 
-    self.search_regex_checkbox = QCheckBox("Regex")
-    self.search_regex_checkbox.setToolTip("İşaretlersen arama kutusundaki ifade regex olarak yorumlanır.")
+    self.search_regex_checkbox = QCheckBox("Düzenli İfadeler")
+    self.search_regex_checkbox.setToolTip("Arama kutusundaki ifadeyi düzenli ifade olarak yorumlar.")
     self.search_regex_checkbox.toggled.connect(self.apply_filters)
-    filter_layout.addWidget(self.search_regex_checkbox)
+    self.search_regex_checkbox.setVisible(False)
 
-    self.refresh_button = QPushButton("Yenile")
+    self.refresh_button = QPushButton("Sayfayı Yenile")
     self.refresh_button.setToolTip("Seçili tarihteki klasörü yeniden tarar ve listeyi günceller.")
     self.refresh_button.clicked.connect(self.load_news)
     filter_layout.addWidget(self.refresh_button)

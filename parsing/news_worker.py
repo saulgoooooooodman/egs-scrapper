@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
+import sqlite3
 from pathlib import Path
 from threading import Event
 
@@ -34,15 +35,15 @@ class NewsLoadWorker(QObject):
             if self._cancel_event.is_set():
                 return None
             return self.ingest_service.build_news_item(file_path)
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
             logging.getLogger("EGS.NewsWorker").exception(
-                "Dosya işlenemedi | kanal=%s | dosya=%s",
+                "Dosya islenemedi | kanal=%s | dosya=%s",
                 self.channel_name,
                 file_path,
             )
             try:
                 record_parse_error(self.channel_name, str(file_path), exc, phase="worker")
-            except Exception:
+            except (OSError, RuntimeError):
                 logging.getLogger("EGS.NewsWorker").exception(
                     "Parse hata raporu yazilamadi | kanal=%s | dosya=%s",
                     self.channel_name,
@@ -83,5 +84,5 @@ class NewsLoadWorker(QObject):
             results.sort(key=lambda item: (item.news_code, item.title))
             self.finished.emit(results)
 
-        except Exception as exc:
+        except (RuntimeError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
             self.error.emit(str(exc))

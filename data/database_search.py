@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from core.settings_manager import load_settings
+from core.text_utils import normalize_search_text
 from data.database import get_legacy_db_path, iter_internal_db_paths
 from models.archive_search_result import ArchiveSearchResult
 
@@ -28,7 +29,7 @@ def _normalize_editor_tokens(value) -> list[str]:
     if not text:
         return []
     parts = re.split(r"[\n,;]+", text)
-    return [part.strip().casefold() for part in parts if part.strip()]
+    return [normalize_search_text(part) for part in parts if part.strip()]
 
 
 def _row_haystack(row, scope: str) -> str:
@@ -72,9 +73,9 @@ def _text_matches_query(haystack: str, query: str, use_regex: bool, exact_match:
         return True
 
     if exact_match:
-        return haystack == query
+        return normalize_search_text(haystack) == normalize_search_text(query)
 
-    return query.lower() in haystack.lower()
+    return normalize_search_text(query) in normalize_search_text(haystack)
 
 
 def _row_matches_query_clauses(row, query_clauses, use_regex: bool, exact_match: bool) -> bool:
@@ -315,7 +316,7 @@ def search_archive(
                 editor_filters,
                 should_cancel,
             )
-        except Exception as exc:
+        except (sqlite3.Error, OSError, re.error, ValueError) as exc:
             error_info = {
                 "channel_name": channel_name,
                 "source_name": source_name,
@@ -337,7 +338,7 @@ def search_archive(
             elif callable(error_sink):
                 try:
                     error_sink(error_info)
-                except Exception:
+                except (TypeError, ValueError, RuntimeError):
                     logger.exception("Arşiv arama hata toplayıcısı başarısız | kanal=%s", channel_name)
             continue
 

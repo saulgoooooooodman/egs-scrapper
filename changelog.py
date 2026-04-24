@@ -1,7 +1,11 @@
 from version_info import APP_RELEASE_DATE, APP_VERSION
 
 
-CURRENT_VERSION_NOTES = [
+PREVIOUS_VERSION = "v1.8.45"
+PREVIOUS_RELEASE_DATE = "2026-04-24"
+
+
+V1825_NOTES = [
     "Veritabanı bakım işlemlerinden sonra çıkan bilgi pencereleri artık bekleme imleci bırakıldıktan sonra açılıyor; program donmuş hissi azaltıldı.",
     "Veritabanı bakım menüsünde `VACUUM` komutu `Veritabanını Toparla`, `ANALYZE` komutu `Arama İstatistiklerini Yenile` olarak Türkçeleştirildi.",
     "Yardım penceresindeki üst boşluk ve arama satırı yerleşimi yeniden düzenlendi; içerik artık üstten daha düzgün başlıyor.",
@@ -56,7 +60,243 @@ CURRENT_VERSION_NOTES = [
 ]
 
 
+V1826_NOTES = [
+    "Yedekleme betiği kendi `backups` klasörüne çarpmayacak şekilde düzeltildi; `prepare_release.bat` artık release öncesinde otomatik kaynak yedeği alıyor.",
+    "Harici veritabanı birleştirme akışı güçlendirildi; `news` tablosu yoksa doğru hata veriyor, satır bazlı başarı/atlanan/hatalı sayıları kullanıcıya raporlanıyor.",
+    "Günlük tarama akışı, kaynak klasörde silinmiş dosyalara ait eski DB ve cache kayıtlarını otomatik temizleyecek şekilde güncellendi.",
+    "Başlık Sözlüğü ve Kanal Kuralları pencereleri artık kaydedilmemiş değişiklikleri kapanışta ve kapsam/kanal değişiminde otomatik saklıyor; kullanıcının eklediği sözlük ve haber kodu girdileri daha güvenli korunuyor.",
+    "Haber listesine klavyeyle artımlı hızlı seçim eklendi; liste odaktayken yazılan harfler başlığı o önekle başlayan ilk habere atlatıyor.",
+    "Backfill taramasında gün bazlı tarama hataları artık loglanıyor ve iptal isteği dosya döngüsü içinde de daha hızlı uygulanıyor.",
+    "Smoke test; harici DB merge, sözlük kalıcılığı ve klavyeyle hızlı seçim senaryolarını kapsayacak şekilde genişletildi. Sağlık kontrolü de backfill dosyalarını izleyecek şekilde güncellendi.",
+    "Yardım içeriği; klavyeyle hızlı gezinme, dinamik haber kodu ekleme ve sözlük değişikliklerinin kaydedilmesi akışlarını anlatacak şekilde güncellendi.",
+]
+
+
+V1827_NOTES = [
+    "Kanal Kuralları penceresindeki `Boş satırları göster` seçeneği kaldırıldı; liste artık gereksiz boş satırlar üretmiyor ve `Satır Ekle` komutu doğrudan yeni satıra odaklanıyor.",
+    "A SPOR için `SP` taban kodu varsayılan kurallara eklendi; `SP01`, `SP13` gibi sayısal varyantlar parser tarafından otomatik olarak `SP` ailesi altında çözümleniyor.",
+    "Smoke test; spor bülteni sayısal kod varyantlarını ve Kanal Kuralları ekranındaki yeni satıra otomatik odaklanma davranışını doğrulayacak şekilde genişletildi.",
+    "Yardım içeriği ve sürüm kaydı, sayısal kod varyantlarının nasıl yorumlandığını anlatacak şekilde güncellendi.",
+]
+
+
+V1828_NOTES = [
+    "Kaynağı klasörde göster akışları ortak `explorer` yardımcı fonksiyonuna taşındı; kabuk komutları daha güvenli ve denetlenebilir hale getirildi.",
+    "Ana veri yükleme akışındaki kritik geniş `except Exception` blokları daraltıldı; veritabanı, dosya sistemi ve UI hataları daha anlamlı hata türleriyle ayrıştırılıyor.",
+    "Veritabanı birleştirme ve arşiv arama worker akışlarında da hata yakalama kapsamı sıkılaştırıldı; beklenmeyen hataların gizlenme riski azaltıldı.",
+    "Sağlık kontrolü yeni kabuk yardımcı modülünü izleyecek şekilde güncellendi; yardım içeriğine Kanal Kuralları ekranındaki doğrudan yeni satıra odaklanma davranışı eklendi.",
+]
+
+
+V1829_NOTES = [
+    "Eski `database_core` katmanı bağımsız veritabanı mantığı taşımayacak şekilde emekliye ayrıldı; dosya artık yeni veritabanı katmanına yönlenen ince bir uyumluluk sarmalı olarak çalışıyor.",
+    "Smoke test, `database_core` uyumluluk katmanının aktif veritabanı yoluna yönlendiğini doğrulayacak şekilde genişletildi.",
+    "Worker, pencere kapanışı, klasör tarama ve arşiv arama akışlarında kalan bazı geniş hata yakalama blokları daha dar hata türlerine indirildi; gerçek beklenmeyen hataların gizlenme riski biraz daha azaltıldı.",
+    "Sağlık kontrolü `database_core` uyumluluk katmanını da izleyecek şekilde güncellendi.",
+]
+
+
+V1830_NOTES = [
+    "Ayar yükleme, kural dosyası okuma, atomik dosya yazma, log temizleme ve pencere durumu saklama akışlarında kalan bazı geniş hata yakalama blokları daha dar hata türlerine indirildi.",
+    "Uygulama başlangıcı ile backfill worker akışında hata kapsamı sıkılaştırıldı; beklenmedik hataların sessizce yutulma alanı biraz daha küçültüldü.",
+    "Klasör tarama ve bazı destek akışlarında yalnızca beklenen dosya sistemi/çalışma zamanı hataları tutulacak şekilde temizlik yapıldı.",
+    "Bu bakım turu `v1.8.30` altında kayıt altına alındı ve yeni sürüm öncesi kaynak yedeği oluşturuldu.",
+]
+
+
+V1831_NOTES = [
+    "Kalan son genel `except Exception` blokları da dialog, düzenleme ve yardımcı akışlarda daraltıldı; hata yakalama artık daha hedefli hale geldi.",
+    "Sözlük dışa/içe aktarma, log görüntüleme, veritabanı birleştirme ve kural kaydetme pencerelerinde yalnızca beklenen dosya ve veri hataları tutuluyor.",
+    "Pano kopyalama ve benzeri küçük düzenleme yardımcılarında da çalışma zamanı hataları daha net ayrıştırıldı.",
+    "Genel taramada uygulama kodunda hedeflenen geniş `except Exception` kullanımı kalmayacak seviyeye getirildi ve bu durum `v1.8.31` olarak kayıt altına alındı.",
+]
+
+
+V1832_NOTES = [
+    "Ortak başlık sözlüğü kaldırıldı; her kanal artık yalnızca kendi sözlüğünü kullanıyor ve eski ortak sözlük girdileri ilk geçişte kanal sözlüklerine taşınıyor.",
+    "Sözlük paylaşımı kanal bazlı import/export akışına dönüştürüldü; `Sözlük Paketini Yönet` penceresi artık aktif kanalın sözlüğünü dışa aktarır ve gelen paketi yine o kanala ekler.",
+    "Kanal kuralları kullanıcı verisi alanına taşındı; böylece güncelleme paketleri kullanıcıların eklediği haber kodlarını ezmeden uygulanabiliyor.",
+    "Release sürecine hafif update paketi hattı eklendi. `prepare_release.bat` artık tam paket yanında `apply_update.bat` kullanan ayrı bir güncelleme paketi de üretiyor.",
+    "Yardım, README, smoke test ve sağlık kontrolü yeni kanal bazlı sözlük modeli ile güncelleme paketi akışını kapsayacak şekilde güncellendi.",
+]
+
+
+V1833_NOTES = [
+    "Yeni `MINI_SURUM_REHBERI.md` dosyası eklendi; teknik olmayan, kısa ve adım adım sürüm çıkarma kontrol listesi proje içine kalıcı olarak yerleştirildi.",
+    "README ve yardım içeriği mini sürüm rehberine yönlendirecek şekilde güncellendi; yeni sürüm hazırlarken tek yerden takip edilebilecek basit anlatım eklendi.",
+    "Release hazırlama akışı mini sürüm rehberini portable ve update paketlerine de dahil edecek şekilde güncellendi.",
+    "Sağlık kontrolü mini sürüm rehberi dosyasını da izleyecek şekilde genişletildi ve bu dokümantasyon güncellemesi `v1.8.33` olarak kayıt altına alındı.",
+]
+
+
+V1834_NOTES = [
+    "Update akışı komut satırından çıkarıldı; `apply_update.bat` artık kullanıcıdan kurulu klasörü seçmesini isteyen basit bir pencere açıyor ve güncelleme öncesi yedeği bu arayüzden alıyor.",
+    "Kanal Kuralları ekranı başlık sözlüğüne benzer hızlı ekleme alanıyla yenilendi; kanal kodları artık üstteki `kanal kodu + açıklama + ekle` akışıyla giriliyor ve `K STD`, `K - STD`, `K- STD` gibi yazımlar standart `K-STD` biçimine çevriliyor.",
+    "Kanal kurallarına kod detayı ve kanal geneli başlık temizleme ayarları eklendi; kullanıcı artık seçili kod için başlığa etiket ekleme, haber metninin üstüne sabit satır koyma, başlıktan ifade kaldırma ve sondaki saat/sayıyı silme gibi kuralları kendisi tanımlayabiliyor.",
+    "A PARA başlık son eki boşluksuz `-APR` olarak düzeltildi; Cinegy metni artık düzeltilmiş başlığı ilk satıra, orijinal başlığı hemen alt satıra birlikte yazıyor.",
+    "Türkçe başlık düzeltme altyapısı `Wordfreq + RapidFuzz` desteğiyle güçlendirildi; `ERDOGAN`, `TURKIYE`, `MECLIS` gibi ASCII başlıklar Türkçe karakterlerle daha güvenli düzeltiliyor. Build ve test akışı da yeni altyapıyı kapsayacak şekilde güncellendi.",
+]
+
+
+V1835_NOTES = [
+    "Yazım denetimi daha temkinli hale getirildi; sistem artık anlam tahmini yapmadan öncelikle güvenli Türkçe karakter onarımına odaklanıyor. Böylece `COKUSU -> ÇÖKÜŞÜ` gibi düzeltmeler korunurken `KURGUNUN -> KURUNUN` gibi agresif sapmalar büyük ölçüde engellendi.",
+    "Haber listesi sağ tık menüsüne `Yazımı Düzelt` ve `Yazımı Geri Al` komutları eklendi; kullanıcı artık başlık düzeltmesini satır satır uygulayabilir veya seçili haberlerde temizleyebilir.",
+    "Kanal Kuralları ekranındaki tablo genişletildi; mevcut kurallar için başlık ön/son eki, silinen ifadeler ve sondaki sayı silme durumu artık doğrudan listede görülebiliyor.",
+    "Yazı boyutu ayarı odaklı hale getirildi; haber listesi seçiliyken liste boyutu, haber metni seçiliyken metin boyutu ayrı ayrı büyütülüp küçültülebiliyor.",
+    "Yardım içeriği veritabanında orijinal/düzeltilmiş başlık davranışını, geri alma mantığını ve `Yenile / Zorla Yenile` farkını daha sade anlatacak şekilde güncellendi. Bu bakım turu `v1.8.35` olarak kayda alındı.",
+]
+
+
+V1836_NOTES = [
+    "Başlık yazım denetimi artık menüden açılıp kapatılabiliyor; otomatik başlık düzeltmesi isteğe bağlı hale getirildi. A NEWS kanalında Türkçe yazım denetimi uygulanmıyor.",
+    "`Yazımı Geri Al` akışındaki başlık çoğaltma hatası düzeltildi. Sağ tıkta `Yazımı Düzelt` artık doğrudan tıklanan satıra uygulanıyor ve `Seçili Haberi Güncelle` komutuyla kaynak dosyadan tek haber yeniden okunabiliyor.",
+    "Canlı izleme altyapısı güçlendirildi; seçili tarih klasörü henüz oluşmamış olsa bile üst klasörler izleniyor. Boş gün sonradan dosya alırsa liste artık uygulamayı kapatıp açmadan oluşabiliyor.",
+    "Arama ve filtre tarafı sadeleştirildi; arama kutusuna temizleme düğmesi eklendi, regex ana ekrandan kaldırılıp `Ara > Düzenli İfadeler` altına taşındı, örnek desenler menüden arama kutusuna eklenebilir hale geldi.",
+    "Sağ tık bağlam menüsüne `Haber Kodunu Gizle`, `Yalnızca Bu Haber Kodunu Göster`, `Filtreyi Geri Al`, `Filtreleri Temizle`, `Sayfayı Yenile` ve `Veritabanını Güncelle` komutları eklendi.",
+    "Kanal Kuralları ekranından `Metin Üst Etiketi` alanı kaldırıldı. `+` ile başlayan dosyaları gizleme davranışı kanal bazında açılıp kapatılabiliyor.",
+    "Haber listesi için kod bazlı renk atama eklendi; kullanıcı satır ve yazı rengini haber koduna göre belirleyebiliyor. İstenirse eski tarihli haberler için ayrı renk atanabiliyor.",
+    "Pencere bölme oranı ve son açılan gün artık hatırlanabiliyor. `Kaynağı Klasörde Göster` komutu Explorer ile daha doğru çalışacak şekilde düzeltildi. Güncelleme arayüzü UTF-8 olarak yeniden kaydedildi.",
+    "Yardım içeriği, yeni menü adları, önbellek açıklaması, canlı izleme davranışı ve sağ tık bağlam menüsü komutlarıyla güncellendi. Bu tur `v1.8.36` olarak kayda alındı.",
+]
+
+
+V1837_NOTES = [
+    "Kanal Kuralları ekranına üstte hızlı ekleme satırı eklendi; `kanal kodu + açıklama + Hızlı Ekle` akışıyla yeni kod girildiğinde filtre temizleniyor, kod standart biçime çevriliyor ve yeni satıra doğrudan odaklanılıyor.",
+    "Kanal Kuralları ekranı sağ tık bağlam menüsü ve çift tıklama düzenleme akışıyla güçlendirildi. `Yeni Kanal Kodu Ekle` detay penceresi açıyor, `Düzenle` adı netleştirildi ve kanal geneli başlık kuralları ayrı pencerede açılıyor.",
+    "Kanal kurallarına `açıklamayı başlığın sonuna ekle` davranışı eklendi; artık açıklama istenirse başlığın sonuna da otomatik yazılabiliyor.",
+    "Sembollü haber kodları ile genel sembol başlıkları ayrıştırıldı. `+SES` gibi gerçek kodlar tanınmaya devam ederken listede haber kodu gösterimi sadeleşti; `+` işareti kullanıcıya görünen haber kodunda gösterilmiyor.",
+    "`Sembol ile Başlayan Başlıkları Gizle` seçeneği Görünüm ve Ayarlar menülerine eklendi. Bu ayar kanal bazında saklanıyor ve gerçek sembollü haber kodlarını yanlışlıkla gizlemiyor.",
+    "`Aynı Haber Başlıkları` menüsü sadeleştirildi; `Tümünü Göster` seçeneği aynı başlıklar altına taşındı. Düzenli ifade örnekleri de Yardım menüsündeki `Düzenli İfadeler` bölümüne alındı.",
+    "Ayarlar üst menüden çıkarılıp `Dosya > Ayarlar` altına taşındı. Yeni Ayarlar penceresi kategori bazlı çalışıyor ve temel kullanıcı ayarlarını tek ekranda topluyor.",
+    "Kaynak klasör boş görünüyorsa program artık o güne ait veritabanı kayıtlarını koruyor. Kullanıcıya uyarı gösteriliyor ve isterse `Bir daha gösterme` seçeneğiyle bu uyarıyı kapatabiliyor.",
+    "`Yazım Altyapısını Denetle` komutu son kullanıcı menüsünden kaldırıldı; bu kontrol artık bakım amacıyla geliştirici tarafında tutuluyor.",
+]
+
+V1838_NOTES = [
+    "Haber listesi artık kural eklerini alfabetik sıralamayı bozmayacak ayrı `liste başlığı` ile gösteriyor; böylece `ÖZEL DOSYA-...` gibi eklenmiş başlıklar listede aranırken asıl haber adına göre bulunabiliyor.",
+    "Haber listesi sıralaması Türkçe alfabe mantığına göre güncellendi; `Ç, Ğ, İ, Ö, Ş, Ü` içeren başlıklar listenin sonuna düşmüyor.",
+    "Durum çubuğu artık görünen haber sayısının yanında gizlenen haber miktarını da yazıyor.",
+    "Canlı izleme klasör ağacı güçlendirildi; seçili günün klasörü, üst yıl klasörü ve mevcut alt klasörler birlikte izleniyor. Boş başlayan gün klasörüne sonradan dosya gelirse liste kendini daha kolay toparlıyor.",
+    "`Dosya > Ayarlar` penceresi genişletildi. Başlık yazım denetimi artık `Kapalı / Elle / Otomatik` olarak seçilebiliyor.",
+    "Sağ tık bağlam menüsündeki `Metni Kaydet` ifadesi `Kaydet` olarak sadeleştirildi, `Renk Ata` ifadesi `Renklendir` olarak güncellendi.",
+    "Haber kodu renklendirmeleri kanal kuralı mantığına taşındı; satır rengi ve yazı rengi artık ilgili kanal koduyla birlikte saklanıyor. Kanal kodu düzenleme penceresine canlı renk önizlemesi eklendi.",
+    "Görünüm ve renk ayarlarında temel geri alma / yineleme desteği eklendi; haber metni odakta değilken `Ctrl+Z` son ayar değişikliğini geri alır, `Ctrl+Y` tekrar uygular.",
+    "Yeni `Araçlar > İstatistikler` penceresi eklendi. Tarih aralığı ve kanal seçerek yıl, ay, gün ve editör bazında haber sayılarını görebilirsin.",
+    "Güncelleme arayüzü Türkçe metinlerle yeniden yazıldı ve UTF-8 BOM ile kaydedildi; `Güncelleme`, `Gözat`, `Hazır` gibi başlıklar artık bozuk görünmemeli.",
+]
+
+V1839_NOTES = [
+    "Kanal Kuralı düzenleme penceresine satır rengi ve yazı rengi için `Temizle` düğmeleri eklendi; girilen renk kodunu silince artık önizleme tarafında stil hatası vermemeli.",
+    "Haber listesi üç sütunlu hale getirildi: `Kod`, `Açıklama`, `Haber`. Kullanıcı başlıktaki sağ tık bağlam menüsünden istediği sütunu gizleyip tekrar gösterebilir.",
+    "`(OD)` gibi özel durumlu haberlerde liste başlığı artık haberin asıl adına göre gösteriliyor. Örneğin `DS- (OD) ...` listede `ÖZEL DOSYA-...` diye değil, haber adıyla sıralanıyor; haber metnindeki düzeltilmiş başlık yine korunuyor.",
+    "Eski veritabanı kayıtlarında kalmış hatalı liste başlıkları için de ek koruma eklendi; uygulama yükleme sırasında dosya adından temiz liste başlığını yeniden türetebiliyor.",
+    "Canlı izlemeye ikinci güvenlik katmanı olarak kısa aralıklı klasör yoklaması eklendi. Windows bildirimini kaçırsa bile seçili gün klasöründeki yeni dosya veya silme değişikliği fark edilip liste yenilenebiliyor.",
+    "Canlı izleme tetiklendiğinde aynı günün haberleri daha güvenli yenilensin diye yeniden tarama akışı güçlendirildi.",
+]
+
+
+PREVIOUS_VERSION_NOTES = V1839_NOTES
+
+
+V1840_NOTES = [
+    "Canlı izleme katmanı hafifletildi. Ağır klasör imzası taraması kaldırılarak izleme tarafındaki yavaşlama azaltıldı; canlı yenileme artık gereksiz `Zorla Yenile` yerine normal günlük yenileme mantığıyla çalışıyor.",
+    "Daha önce parse edilmiş bir gün, dosya değişmemişse veritabanı ve önbellekten okunmaya devam ediyor. Canlı izleme ya da `Sayfayı Yenile` yalnızca yeni veya değişen dosyaları yeniden işler.",
+    "`Metni Kaydet` düğmesi `Kaydet` olarak sadeleştirildi.",
+    "`AZ / ANALİZ` haberleri listede artık sade başlıkla görünür. `ANALİZ-...` eki alfabetik aramayı bozmaz; düzeltme yine haber metninde korunur.",
+    "`AZ- APS- KAC POSETE SIGAR KI DUNYA_OGLE` gibi düzensiz başlıklarda `APS` temizlendikten sonra kalan fazla tire ve çift boşluk sorunu giderildi. Başlık artık `ANALİZ- KAC POŞETE SIĞAR KI DÜNYA VTR` gibi daha temiz üretilir.",
+    "A HABER `AZ` kodu için varsayılan `VTR` son eki eklendi. Başlık zaten `VTR` ile bitiyorsa tekrar eklenmez; bu mantık Kanal Kuralları içindeki başlık son eki alanıyla diğer kodlara da uygulanabilir.",
+]
+
+
+V1841_NOTES = [
+    "16 Nisan gibi önce boş görünen, sonra klasöre dosya düşen günlerde yaşanan ana sorun çözüldü. Tarih klasörü çözümleme mantığı düzeltilerek yanlış `...\\HABER\\HABER\\...` yoluna bakma ihtimali giderildi.",
+    "Tarih klasörü çözümünde olumsuz sonuçları bellekte tutan önbellek kaldırıldı. Böylece bir gün açıldığında klasör henüz yoksa, daha sonra dosya gelince `Sayfayı Yenile` ve canlı izleme artık doğru klasörü yeniden görebilir.",
+    "Canlı izleme ve yenileme sorunlarını teşhis etmek için geliştirici tarafında `tools/day_scan_debugger.py` eklendi. Bu araç seçili gün için hangi klasöre bakıldığını, kaç dosya bulunduğunu ve veritabanında kaç kayıt olduğunu tek seferde gösterir.",
+]
+
+
+V1844_NOTES = [
+    "Tarama logları sadeleştirildi. Tek tek yüzlerce dosya için bilgi satırı yazmak yerine, ayıklanan ve gizlenen dosya sayıları artık tarama sonunda özet olarak kaydediliyor; günlük log dosyaları daha okunur hale geldi.",
+    "Ana yükleme akışındaki kritik veritabanı ve önbellek hataları artık çıplak `traceback` yerine açıklayıcı log kayıtlarıyla tutuluyor. Böylece sorun çıkarsa hangi adımda, hangi dosyada olduğunu anlamak daha kolay.",
+    "Uygulama açılışında exception hook kurulamazsa veya ana pencere açılamazsa başlangıç hataları da standart log sistemine düşecek şekilde toparlandı.",
+]
+
+
+V1845_NOTES = [
+    "Arşiv Arama penceresine `Dışa Aktar` eklendi; sonuçlar artık CSV veya Excel'in açabildiği XLS formatında dışa alınabiliyor.",
+    "Arşiv Arama'da arama satırlarında ve editör filtresinde Enter tuşuna basmak aramayı başlatıyor. Bulunan ifadeler sonuç tablosunda hücre bazında, alt önizlemede ise metin içinde vurgulanıyor.",
+    "Güncelleme arayüzüne temel sürüm kontrolü eklendi. Çok eski sürüm tespit edilirse kullanıcıya uyarı gösteriliyor ve güncellemeden sonra `Veritabanını Güncelle` çalıştırması öneriliyor.",
+    "Ana haber listesine `Düzeltilmiş Başlıkları Göster` seçeneği eklendi. Bu görünümde düzeltilmiş başlıklar listelenir; ancak `ANALİZ-`, benzeri ön ekler alfabetik düzeni bozmasın diye gizlenir.",
+]
+
+
+PREVIOUS_VERSION_NOTES = V1845_NOTES
+
+
+CURRENT_VERSION_NOTES = [
+    "Özel dosya haberleri artık güncel akışta da tek satır başlıkla üretiliyor. `A- ... (OD)` gibi dosyalar haber metninde `ÖZEL DOSYA-...` olarak yazılıyor; başlık üstüne ayrı `ÖZEL DOSYA` satırı eklenmiyor.",
+    "Haber kodu gösterimi sadeleştirildi. Parantezli `YY-(OD)`, `A-(OD)` gibi kodlar artık kullanıcıya `YY-OD`, `A-OD` olarak gösteriliyor; eski kayıtlar ve eski veritabanları ise geriye dönük uyumla okunmaya devam ediyor.",
+    "Veritabanından yüklenen eski özel dosya kayıtları ekrana gelirken sessizce onarılıyor. Daha önce ayrı satır `ÖZEL DOSYA` ile yazılmış kayıtlar yeni kurala göre birleşik başlık biçiminde gösterilebiliyor.",
+    "Smoke test, özel dosya haberlerinde yeni `-OD` kod gösterimini ve tek satır `ÖZEL DOSYA-...` başlık üretimini doğrulayacak şekilde genişletildi.",
+]
+
+
 CHANGELOG_HISTORY = [
+    {
+        "version": PREVIOUS_VERSION,
+        "date": PREVIOUS_RELEASE_DATE,
+        "notes": PREVIOUS_VERSION_NOTES,
+    },
+    {
+        "version": "v1.8.34",
+        "date": "2026-04-20",
+        "notes": V1834_NOTES,
+    },
+    {
+        "version": "v1.8.33",
+        "date": "2026-04-20",
+        "notes": V1833_NOTES,
+    },
+    {
+        "version": "v1.8.32",
+        "date": "2026-04-20",
+        "notes": V1832_NOTES,
+    },
+    {
+        "version": "v1.8.31",
+        "date": "2026-04-20",
+        "notes": V1831_NOTES,
+    },
+    {
+        "version": "v1.8.30",
+        "date": "2026-04-20",
+        "notes": V1830_NOTES,
+    },
+    {
+        "version": "v1.8.29",
+        "date": "2026-04-19",
+        "notes": V1829_NOTES,
+    },
+    {
+        "version": "v1.8.28",
+        "date": "2026-04-19",
+        "notes": V1828_NOTES,
+    },
+    {
+        "version": "v1.8.27",
+        "date": "2026-04-19",
+        "notes": V1827_NOTES,
+    },
+    {
+        "version": "v1.8.26",
+        "date": "2026-04-19",
+        "notes": V1826_NOTES,
+    },
+    {
+        "version": "v1.8.25",
+        "date": "2026-04-17",
+        "notes": V1825_NOTES,
+    },
     {
         "version": "v1.8.13",
         "date": "2026-04-17",

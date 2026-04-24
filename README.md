@@ -116,13 +116,98 @@ Uygulama yazilabilir verileri varsayilan olarak kullanici profilinde tutar:
 Burada tipik olarak sunlar bulunur:
 
 - `settings.json`
+- `channel_rules.json`
 - `databases/`
 - `logs/`
 - `error_reports/`
 - `channel_dictionaries/`
-- `common_dictionary.json`
 
 Bu veriler kisiye ve makineye ozeldir, bu yuzden repoya dahil edilmez.
+
+## Sozluk Modeli
+
+Artik ortak baslik sozlugu yoktur.
+
+- Her kanal kendi sozlugunu kullanir
+- Eski ortak sozluk girdileri ilk acilista kanal sozluklerine tasinir
+- Sozluk paylasimi `Sozluk Paketini Yonet` ekraniyla import/export edilerek yapilir
+
+Bu sayede bir kanaldaki sozluk degisikligi baska kanallari dogrudan etkilemez.
+
+Kanal kurallari ekrani da gelistirildi:
+
+- Yeni kanal kodlari ustteki hizli alanlardan eklenir
+- `K STD`, `K - STD`, `K- STD` gibi yazimlar otomatik olarak `K-STD` bicimine cevrilir
+- Kod detayi ekraninda basliga etiket ekleme, metin ust etiketi koyma ve baslik temizleme kurallari tanimlanabilir
+
+## Guncelleme Paketi Mantigi
+
+Her yeni surumde tum klasoru tekrar dagitmak yerine artik update paketi de hazirlanir.
+
+Amaç:
+
+- kullanicinin veritabanlarini korumak
+- kanal sozluklerini korumak
+- kanal kurallarini korumak
+- yalnizca uygulama dosyalarini guncellemek
+
+Korunan kullanici verileri `%LOCALAPPDATA%\EGS Scrapper` altinda kaldigi icin update paketi bunlara dokunmaz.
+
+## Mini Surum Rehberi
+
+Hic teknik bilgi olmadan yeni surum cikarmak icin proje klasorundeki su dosyayi ac:
+
+```text
+MINI_SURUM_REHBERI.md
+```
+
+Bu dosya sana kisa sirayla sunlari hatirlatir:
+
+1. Degisikligi tamamla
+2. Surum numarasini artir
+3. Yedegi al
+4. Surum notunu yaz
+5. Gerekirse yardimi guncelle
+6. `build_exe.bat` calistir
+7. `prepare_release.bat` calistir
+8. Dogru paketi kullaniciya gonder
+
+## Update Paketi Hazirlama
+
+1. `build_exe.bat` calistir
+2. `prepare_release.bat` calistir
+3. `release` klasoru altinda iki cikti al
+
+Olusan ciktilar:
+
+- `EGS_Scrapper_Portable_...`
+- `EGS_Scrapper_Update_...`
+
+Portable paket tam dagitimdir.
+Update paketi ise mevcut kurulumun uzerine uygulanacak hafif pakettir.
+
+## Kullaniciya Update Verme
+
+1. `release\EGS_Scrapper_Update_...\EGS Scrapper Update` klasorunu zipleyip kullaniciya gonder
+2. Kullanici zipi herhangi bir klasore acsin
+3. Kullanici `apply_update.bat` dosyasini calistirsin
+4. Acilan kucuk pencerede mevcut EGS Scrapper klasorunu secsin
+5. `Guncelle` dugmesine bassin
+6. Arac once uygulama dosyalarinin yedegini alir
+7. Sonra yeni dosyalari eski kurulumun ustune kopyalar
+
+Bu akista kullanicinin yerel verileri korunur.
+
+## Ne Korunur
+
+Update paketi uygulanirken su alanlara dokunulmaz:
+
+- `settings.json`
+- `channel_rules.json`
+- `databases/`
+- `logs/`
+- `error_reports/`
+- `channel_dictionaries/`
 
 ## Profil Sistemi
 

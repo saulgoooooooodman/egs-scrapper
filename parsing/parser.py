@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from core.rules_store import get_channel_rules
+from core.rules_store import display_rule_code, get_channel_rules, normalize_rule_code
 
 
 FORMAT_NAMES = {
@@ -15,6 +15,8 @@ FORMAT_NAMES = {
     "VO": "SES",
     "LIVE": "CANLI",
 }
+
+LEADING_CODE_SYMBOLS = "+!#*"
 
 
 @dataclass
@@ -138,9 +140,73 @@ def _get_valid_news_codes(channel_name: str) -> list[str]:
     if not isinstance(codes, dict):
         return []
 
-    valid_codes = [str(code).strip() for code in codes.keys() if str(code).strip()]
+    valid_codes = [
+        normalize_rule_code(code)
+        for code in codes.keys()
+        if normalize_rule_code(code)
+    ]
     valid_codes.sort(key=len, reverse=True)
     return valid_codes
+
+
+def _build_flexible_code_pattern(valid_code: str) -> str:
+    code = normalize_rule_code(valid_code)
+    if not code:
+        return ""
+
+    if "-" not in code:
+        return re.escape(code)
+
+    parts = [part for part in code.split("-") if part]
+    if len(parts) <= 1:
+        return re.escape(code)
+
+    normalized_parts = []
+    for part in parts:
+        clean_part = str(part or "").strip()
+        if clean_part == "OD":
+            inner = re.escape(clean_part)
+            normalized_parts.append(rf"(?:\({inner}\)|{inner})")
+        elif clean_part.startswith("(") and clean_part.endswith(")") and len(clean_part) > 2:
+            inner = re.escape(clean_part[1:-1])
+            normalized_parts.append(rf"(?:\({inner}\)|{inner})")
+        else:
+            normalized_parts.append(re.escape(clean_part))
+
+    return r"(?:\s*-\s*|\s+)".join(normalized_parts)
+
+
+def _match_exact_news_code(base: str, valid_code: str) -> tuple[str, str] | None:
+    code_pattern = _build_flexible_code_pattern(valid_code)
+    if not code_pattern:
+        return None
+
+    pattern = rf"^(?P<code>{code_pattern})(?:(?:\s*-\s*|\s+)(?P<title>.+)|$)"
+    match = re.match(pattern, base, flags=re.IGNORECASE)
+    if not match:
+        return None
+    return normalize_rule_code(valid_code), (match.group("title") or "").strip()
+
+
+def _match_numbered_news_code(base: str, valid_code: str) -> tuple[str, str] | None:
+    normalized_code = normalize_rule_code(valid_code)
+    if not normalized_code or normalized_code[-1].isdigit():
+        return None
+
+    code_pattern = _build_flexible_code_pattern(normalized_code)
+    if not code_pattern:
+        return None
+
+    pattern = (
+        rf"^(?P<code>{code_pattern})"
+        rf"(?P<variant>\d{{1,3}})"
+        rf"(?:(?:\s*-\s*|\s+)(?P<title>.+)|$)"
+    )
+    match = re.match(pattern, base, flags=re.IGNORECASE)
+    if not match:
+        return None
+
+    return normalized_code, (match.group("title") or "").strip()
 
 
 def _extract_news_code_and_title(name: str, channel_name: str) -> tuple[str, str]:
@@ -149,35 +215,42 @@ def _extract_news_code_and_title(name: str, channel_name: str) -> tuple[str, str
     title = base
 
     for valid_code in _get_valid_news_codes(channel_name):
-        pattern = rf"^(?P<code>{re.escape(valid_code)})(?:(?:\s*-\s*|\s+)(?P<title>.+)|$)"
-        match = re.match(pattern, base, flags=re.IGNORECASE)
-        if not match:
+        matched = _match_exact_news_code(base, valid_code)
+        if matched is None:
             continue
 
-        code = valid_code
-        title = (match.group("title") or "").strip()
+        code, title = matched
         break
+
+    if not code:
+        for valid_code in _get_valid_news_codes(channel_name):
+            matched = _match_numbered_news_code(base, valid_code)
+            if matched is None:
+                continue
+
+            code, title = matched
+            break
 
     has_od = (
         "(OD)" in title.upper()
         or title.upper().startswith("(OD)")
-        or code.upper() == "(OD)"
+        or code.upper() in {"(OD)", "OD"}
     )
     title = re.sub(r"\(OD\)", "", title, flags=re.IGNORECASE).strip()
     title = re.sub(r"\bAPS\b", "", title, flags=re.IGNORECASE).strip()
-
-    if channel_name == "A HABER" and code.upper() == "AZ":
-        title = f"ANALİZ-{title}".replace("ANALİZ- -", "ANALİZ-").replace("ANALİZ--", "ANALİZ-")
+    title = re.sub(r"^(?:-\s*)+", "", title).strip()
 
     if has_od:
-        title = f"ÖZEL DOSYA-{title}".strip("- ").replace("--", "-")
-        code = "YY-(OD)"
+        normalized_code = normalize_rule_code(code)
+        if normalized_code and normalized_code != "OD":
+            code = f"{normalized_code}-OD"
+        else:
+            code = "YY-OD"
 
     title = _clean_display_title(title)
     title = _strip_story_day_suffix(title)
 
-    if channel_name == "A PARA" and title and not title.endswith("-APR"):
-        title = f"{title} -APR"
+    code = display_rule_code(code)
 
     return code, title
 
@@ -195,7 +268,34 @@ def _detect_format_code(title: str) -> tuple[str, str]:
 def _resolve_news_category(channel_name: str, news_code: str) -> str:
     rules = get_channel_rules(channel_name)
     codes = rules.get("news_codes", {})
-    return codes.get(news_code, codes.get(news_code.upper(), ""))
+    direct = codes.get(news_code, codes.get(news_code.upper(), ""))
+    if direct:
+        return direct
+
+    normalized_code = normalize_rule_code(news_code)
+    if normalized_code.endswith("-OD"):
+        base_code = normalized_code[:-3].strip("- ")
+        base_label = _resolve_news_category(channel_name, base_code)
+        if base_label:
+            base_label = re.sub(r"\s+HABER$", "", base_label.strip(), flags=re.IGNORECASE)
+            return f"{base_label} ÖZEL DOSYA".strip()
+    if normalized_code.endswith("-(OD)"):
+        base_code = normalized_code[:-5].strip("- ")
+        base_label = _resolve_news_category(channel_name, base_code)
+        if base_label:
+            base_label = re.sub(r"\s+HABER$", "", base_label.strip(), flags=re.IGNORECASE)
+            return f"{base_label} ÖZEL DOSYA".strip()
+
+    display_code = display_rule_code(news_code)
+    if display_code != news_code:
+        direct = codes.get(display_code, codes.get(display_code.upper(), ""))
+        if direct:
+            return direct
+
+    for raw_code, label in codes.items():
+        if display_rule_code(raw_code) == display_code:
+            return label
+    return ""
 
 
 def _extract_summary_and_body(text: str) -> tuple[str, str]:

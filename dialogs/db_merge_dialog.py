@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -83,10 +84,17 @@ class DbMergeDialog(QDialog):
             return
 
         try:
-            merge_external_database_into_channel(self.current_channel, str(db_path))
-        except Exception as exc:
+            result = merge_external_database_into_channel(self.current_channel, str(db_path))
+        except (sqlite3.Error, OSError, RuntimeError, ValueError) as exc:
             QMessageBox.critical(self, "Hata", f"Birleştirme başarısız:\n{exc}")
             return
 
-        QMessageBox.information(self, "Tamam", "Veritabanı birleştirme tamamlandı.")
+        QMessageBox.information(
+            self,
+            "Tamam",
+            "Veritabanı birleştirme tamamlandı.\n\n"
+            f"Yazılan kayıt: {result.get('merged', 0)}\n"
+            f"Atlanan kayıt: {result.get('skipped', 0)}\n"
+            f"Hatalı kayıt: {result.get('failed', 0)}"
+        )
         self.accept()

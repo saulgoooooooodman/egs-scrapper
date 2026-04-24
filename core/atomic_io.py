@@ -25,10 +25,10 @@ def atomic_write_text(path: str | Path, content: str, encoding: str = "utf-8") -
 
         os.replace(temp_path, target)
         return target
-    except Exception:
+    except OSError:
         try:
             temp_path.unlink(missing_ok=True)
-        except Exception:
+        except OSError:
             pass
         raise
 

@@ -9,6 +9,7 @@ env/
 build/
 dist/
 release/
+backups/
 
 logs/
 error_reports/
@@ -21,3 +22,5 @@ smoke_test_report.txt
 EGS Scrapper.zip
 
 channel_dictionaries/smoke_test_dictionary.json
+tools/dosya_envanteri.txt
+tools/liste.txt

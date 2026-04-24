@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files
+
 block_cipher = None
 
 base_dir = Path.cwd()
@@ -25,12 +27,14 @@ for dirname in ["channel_logos", "channel_dictionaries"]:
     if dir_path.exists():
         datas.append((str(dir_path), dirname))
 
+datas += collect_data_files("wordfreq")
+
 a = Analysis(
     ["app.py"],
     pathex=[str(base_dir)],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=["rapidfuzz"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -24,6 +24,15 @@
         "dedupe_prefix_words": [
           "ANALİZ",
           "ANALIZ"
+        ],
+        "title_suffix": "VTR"
+      },
+      "BTH": {
+        "label": "BİR TÜRKÜNÜN HİKAYESİ",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "BİR TÜRKÜNÜN HİKAYESİ",
+          "BIR TURKUNUN HIKAYESI"
         ]
       },
       "C": {
@@ -48,6 +57,11 @@
       },
       "DS": {
         "label": "DIŞ HABER SABAH",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "E": {
+        "label": "EKONOMİ",
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
@@ -106,8 +120,25 @@
           }
         ]
       },
+      "PA": {
+        "label": "PERDE ARKASI",
+        "prepend_to_title": true,
+        "dedupe_prefix_words": [
+          "PERDE ARKASI"
+        ]
+      },
       "S": {
         "label": "SPOR",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "SP01": {
+        "label": "SPOR BÜLTENİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
+      "Y": {
+        "label": "YURT HABER",
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
@@ -126,59 +157,49 @@
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
-      "BTH": {
-        "label": "BİR TÜRKÜNÜN HİKAYESİ",
+      "YS-OD": {
+        "label": "ÖZEL DOSYA",
         "prepend_to_title": true,
+        "body_prefix_text": "ÖZEL HABER",
         "dedupe_prefix_words": [
-          "BİR TÜRKÜNÜN HİKAYESİ",
-          "BIR TURKUNUN HIKAYESI"
-        ]
-      },
-      "E": {
-        "label": "EKONOMİ",
-        "prepend_to_title": false,
-        "dedupe_prefix_words": []
-      },
-      "PA": {
-        "label": "PERDE ARKASI",
-        "prepend_to_title": true,
-        "dedupe_prefix_words": [
-          "PERDE ARKASI"
+          "ÖZEL DOSYA",
+          "OZEL DOSYA"
         ]
       },
       "YY": {
         "label": "ÖZEL DOSYA",
         "prepend_to_title": true,
+        "body_prefix_text": "ÖZEL HABER",
         "dedupe_prefix_words": [
           "ÖZEL DOSYA",
           "OZEL DOSYA"
         ]
       },
-      "YY-(OD)": {
+      "YY-OD": {
         "label": "ÖZEL DOSYA",
         "prepend_to_title": true,
+        "body_prefix_text": "ÖZEL HABER",
         "dedupe_prefix_words": [
           "ÖZEL DOSYA",
           "OZEL DOSYA"
         ]
       },
-      "YS-(OD)": {
-        "label": "ÖZEL DOSYA",
-        "prepend_to_title": true,
-        "dedupe_prefix_words": [
-          "ÖZEL DOSYA",
-          "OZEL DOSYA"
-        ]
+      "SP": {
+        "label": "SPOR BÜLTENİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
       }
     },
     "news_codes": {
       "A": "ANKARA HABER",
       "AZ": "ANALİZ",
+      "BTH": "BİR TÜRKÜNÜN HİKAYESİ",
       "C": "CANLI",
       "D": "DIŞ HABER",
       "DA": "DIŞ HABER AKŞAM",
       "DG": "DIŞ HABER GECE",
       "DS": "DIŞ HABER SABAH",
+      "E": "EKONOMİ",
       "ED": "EDİTÖR SES",
       "I": "İSTANBUL HABER",
       "IA": "İSTANBUL HABER AKŞAM",
@@ -186,16 +207,17 @@
       "IS": "İSTANBUL HABER SABAH",
       "MM": "MEMLEKET MESELESİ",
       "P": "PORTRE",
+      "PA": "PERDE ARKASI",
       "S": "SPOR",
+      "SP01": "SPOR BÜLTENİ",
+      "Y": "YURT HABER",
       "YA": "YURT HABER AKŞAM",
       "YG": "YURT HABER GECE",
       "YS": "YURT HABER SABAH",
-      "BTH": "BİR TÜRKÜNÜN HİKAYESİ",
-      "E": "EKONOMİ",
-      "PA": "PERDE ARKASI",
+      "YS-OD": "ÖZEL DOSYA",
       "YY": "ÖZEL DOSYA",
-      "YY-(OD)": "ÖZEL DOSYA",
-      "YS-(OD)": "ÖZEL DOSYA"
+      "YY-OD": "ÖZEL DOSYA",
+      "SP": "SPOR BÜLTENİ"
     }
   },
   "A NEWS": {
@@ -325,6 +347,11 @@
         "prepend_to_title": false,
         "dedupe_prefix_words": []
       },
+      "SP": {
+        "label": "SPOR BÜLTENİ",
+        "prepend_to_title": false,
+        "dedupe_prefix_words": []
+      },
       "KJ": {
         "label": "KJ",
         "prepend_to_title": false,
@@ -376,6 +403,7 @@
       "C": "CANLI",
       "Z": "BÜLTEN",
       "S": "SPOR",
+      "SP": "SPOR BÜLTENİ",
       "KJ": "KJ",
       "G": "GRAFİK",
       "SA": "SPOR AJANSI",
@@ -393,6 +421,12 @@
     ],
     "hidden_title_contains_whole_words": [],
     "hidden_title_startswith_symbols_or_digits": true,
+    "title_cleanup": {
+      "prefix": "",
+      "suffix": "-APR",
+      "remove_phrases": [],
+      "remove_trailing_numbers": false
+    },
     "codes": {
       "AP": {
         "label": "HABER",
